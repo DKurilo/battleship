@@ -16,7 +16,7 @@ create game
     error: {message}
   }
 send map
-  post session id (owner and player can send map), json with map
+  post session id (owner and player can send map), json with map. Only empty or ship on map
   POST /api/games/{gameid}/{session}/setmap
   [[0,0,0,1,1,0,0...],[...],[...],...]
   response ok or error (wrong map or other)
@@ -26,30 +26,149 @@ send map
   {
     error: {message}
   }
-check if ready to play
+get game status
   send game id and session
   GET /api/games/{gameid}/{session}/
-  response status or error
-  200
-  
-invite a bot
+  response status (map contain only unknown or hit) or error
+  201
+  {
+    "game": {gameid},
+    "message": {message},
+    "you": {owner|player|guest},
+    "turn": {owner|player|notready},
+    "owner": {
+      "name": {name},
+      "message": {message},
+      "map": [[0,0,0,1,1,0,0...],[...],[...],...]
+    },
+    "player": {
+      "name": {name},
+      "message": {message},
+      "map": [[0,0,0,1,1,0,0...],[...],[...],...]
+    },
+    "guests": [
+      {
+        "name": {name},
+        "message": {message}
+      }
+    ]
+  }
+  501
+  {
+    "error": {message}
+  }
+invite a bot (when bot will be ready...)
   post game id and session (only owner can invite a bot)
+  POST /api/games/{gameid}/{session}/invitebot
   response success or error
+  201
+  "ok"
+  501
+  {
+    "error": {message}
+  }
 invite stranger
   post game id and session (only owner can invite strangers) and message
+  POST /api/games/{gameid}/{session}/setpublic
+  {
+    "message": {message}
+  }
   response success if added in list or error
+  201
+  "ok"
+  501
+  {
+    "error": {error}
+  }
 connect
-  post game id, username, role (fan|player), short message
-  response role (fan|player), session, current game state or error. if can't be a player downgrade to fan automatically)
+  post game id, username, role (guest|player), short message
+  POST /api/games/{gameid}/connect/{guest|player}
+  response role (guest|player), session, current game state or error.
+  201
+  {
+    "game": {gameid},
+    "session": {session},
+    "message": {message},
+    "you": {player|guest},
+    "turn": {owner|player|notready},
+    "owner": {
+      "name": {name},
+      "message": {message},
+      "map": [[0,0,0,1,1,0,0...],[...],[...],...]
+    },
+    "player": {
+      "name": {name},
+      "message": {message},
+      "map": [[0,0,0,1,1,0,0...],[...],[...],...]
+    },
+    "guests": [
+      {
+        "name": {name},
+        "message": {message}
+      }
+    ]
+  }
+  501
+  {
+    "error": {message}
+  }
 shoot
   post game id, session (only owner and player can shoot and only in ther turn) and coords
+  POST /api/games/{gameid}/{session}/shoot
+  {
+    "x": {x},
+    "y": {y},
+  }
   response result (hit|miss|sink) or error
+  201
+  {hit|miss|sink}
+  501
+  {
+    "error": {message}
+  }
 write message
   post game id, session, message
+  POST /api/games/{gameid}/{session}/chat/
+  {message}
   response success or error
-read messages GET /api/games/{gameid}/{session}/chat?lastcheck={date}
+  201
+  "ok"
+  501
+  {
+    "error": {message}
+  }
+read messages
   send game id, session, last check date(or nothing)
+  GET /api/games/{gameid}/{session}/chat?lastcheck={date}
   response list of [{name, message, date}], last check date or error
-get list of opened GET /api/games/
+  201
+  [
+    {
+      "name": {name},
+      "message": {message},
+      "date": {date}
+    },
+    ...
+  ]
+  501
+  {
+    "error": {message}
+  }
+get list of opened
   sends nothing
+  GET /api/games/
   response list of {game id, messsge}
+  201
+  [
+    {
+      "game": {gameid},
+      "owner": {name},
+      "message": {game message}
+    },
+    ...
+  ]
+  501
+  {
+    "error": {message}
+  }
+  
