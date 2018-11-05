@@ -23,6 +23,6 @@ respondOk = do
 
 apiInit :: MongoParams -> SnapletInit b Api
 apiInit (MongoParams mongoHost mongoPort mongoUser mongoPass mongoDatabase) = makeSnaplet "api" "Core Api" Nothing $ do
-        ts <- nestSnaplet "games" gameService gameServiceInit
+        ts <- nestSnaplet "games" gameService $ gameServiceInit $ MongoParams mongoHost mongoPort mongoUser mongoPass mongoDatabase
         addRoutes apiRoutes
         return $ Api ts
