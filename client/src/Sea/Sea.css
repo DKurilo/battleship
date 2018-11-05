@@ -1,0 +1,54 @@
+.Sea{
+  font: 0px/0px sans-serif;
+}
+.SeaLine{
+  display: inline-block;
+  vertical-align: top;
+}
+.Cell{
+  width: 20px;
+  height: 20px;
+}
+.Cell.empty{
+  background: transparent url('./empty.png') center center;
+}
+.Cell.miss{
+  background: transparent url('./miss.png') center center;
+}
+.Cell.ship{
+  background: transparent url('./ship.png') center center;
+}
+.Cell.hit{
+  background: transparent url('./hit.png') center center;
+}
+.Cell.light{
+  background-color: rgba(255, 255, 0, .2);
+}
+.Cell:hover, .Cell.current {
+  background-color: rgba(255, 255, 0, .6);
+}
+.Label{
+  display: block;
+  width: 20px;
+  height: 20px;
+  text-align: center;
+  font: bold 14px/20px sans-serif;
+}
+
+.Label.empty{
+  background: transparent url('./label-empty.png') center center;
+}
+
+.Label.x{
+  background: transparent url('./label-x.png') center center;
+}
+
+.Label.y{
+  background: transparent url('./label-y.png') center center;
+}
+
+.Label.active{
+  color: red;
+  font: bold 16px/20px sans-serif;
+  background-color: rgba(255, 255, 0, .2);
+}

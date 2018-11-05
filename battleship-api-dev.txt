@@ -1,0 +1,55 @@
+create game 
+  post username, message
+  POST /api/games/{gameid}/{session}/
+  {
+    "username": {username},
+    "message": {message}
+  }
+  response new game id and session or error
+  201
+  {
+    "game": {gameid},
+    "session": {session}
+  }
+  501
+  {
+    error: {message}
+  }
+send map
+  post session id (owner and player can send map), json with map
+  POST /api/games/{gameid}/{session}/setmap
+  [[0,0,0,1,1,0,0...],[...],[...],...]
+  response ok or error (wrong map or other)
+  201
+  "ok"
+  501
+  {
+    error: {message}
+  }
+check if ready to play
+  send game id and session
+  GET /api/games/{gameid}/{session}/
+  response status or error
+  200
+  
+invite a bot
+  post game id and session (only owner can invite a bot)
+  response success or error
+invite stranger
+  post game id and session (only owner can invite strangers) and message
+  response success if added in list or error
+connect
+  post game id, username, role (fan|player), short message
+  response role (fan|player), session, current game state or error. if can't be a player downgrade to fan automatically)
+shoot
+  post game id, session (only owner and player can shoot and only in ther turn) and coords
+  response result (hit|miss|sink) or error
+write message
+  post game id, session, message
+  response success or error
+read messages GET /api/games/{gameid}/{session}/chat?lastcheck={date}
+  send game id, session, last check date(or nothing)
+  response list of [{name, message, date}], last check date or error
+get list of opened GET /api/games/
+  sends nothing
+  response list of {game id, messsge}

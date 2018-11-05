@@ -1,0 +1,15 @@
+.Settings {
+  width: 100%;
+}
+
+.Settings div{
+  display: inline-block;
+  margin: 10px 20px;
+  cursor: pointer;
+  user-select: none;
+  color: blue;
+}
+
+.Settings div.selected{
+  color: red;
+}
