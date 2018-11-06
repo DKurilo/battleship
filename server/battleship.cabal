@@ -32,7 +32,8 @@ Executable battleship
     snap-loader-static        >= 1.0     && < 1.1,
     lens                      >= 4.16    && < 4.17,
     mongoDB                   >= 2.4     && < 3,
-    ConfigFile                >= 1.1.4   && < 1.2
+    configurator              >= 0.3     && < 0.4,
+    bson                      >= 0.3     && < 0.4
 
   if flag(development)
     build-depends:

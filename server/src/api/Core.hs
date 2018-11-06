@@ -8,7 +8,6 @@ import Control.Lens
 import Snap.Core
 import Snap.Snaplet
 import qualified Data.ByteString.Char8 as B
-import Types
 
 data Api = Api { _gameService :: Snaplet GameService }
 
@@ -21,8 +20,8 @@ respondOk :: Handler b Api ()
 respondOk = do
   modifyResponse . setResponseCode $ 200
 
-apiInit :: MongoParams -> SnapletInit b Api
-apiInit (MongoParams mongoHost mongoPort mongoUser mongoPass mongoDatabase) = makeSnaplet "api" "Core Api" Nothing $ do
-        ts <- nestSnaplet "games" gameService $ gameServiceInit $ MongoParams mongoHost mongoPort mongoUser mongoPass mongoDatabase
+apiInit :: String -> String -> String -> String -> SnapletInit b Api
+apiInit mongoHost mongoUser mongoPass mongoDb = makeSnaplet "api" "Core Api" Nothing $ do
+        ts <- nestSnaplet "games" gameService $ gameServiceInit mongoHost mongoUser mongoPass mongoDb
         addRoutes apiRoutes
         return $ Api ts

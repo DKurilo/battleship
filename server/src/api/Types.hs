@@ -7,7 +7,8 @@ import qualified Data.Text as T
 import qualified Data.ByteString.Char8 as B
 import Data.ByteString.Lazy.Internal as BL
 import Data.ByteString.Lazy.Char8 as Char8
-import           Data.Aeson
+import Data.Bson as BS
+import Data.Aeson
 
 data Game = Game
   { 
@@ -23,3 +24,6 @@ instance ToJSON B.ByteString where
 
 instance ToJSON BL.ByteString where
   toJSON b = toJSON $ Char8.unpack b
+
+instance ToJSON BS.Field where
+  toJSON f = "field"

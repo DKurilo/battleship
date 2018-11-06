@@ -1,0 +1,12 @@
+battleship 
+{
+  static {
+    path = "../client/build"
+  }
+  mongo {
+    host = "127.0.0.1:27017"
+    user = 
+    pass = 
+    db = "battleship"
+  }
+}

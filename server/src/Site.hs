@@ -10,9 +10,8 @@ module Site
 
 ------------------------------------------------------------------------------
 import           Api.Core
+import           Data.Configurator
 import           Control.Lens
--- import           Database.MongoDB
-import           Data.ConfigFile
 import           Control.Monad.Error
 import           Control.Applicative
 import           Data.ByteString (ByteString)
@@ -27,31 +26,8 @@ import           Snap.Util.FileServe
 import           Heist
 import qualified Heist.Interpreted as I
 ------------------------------------------------------------------------------
-import           Types
 import           Application
 
-getConfig :: IO (Either CPError MyConfig)
-getConfig = do
-              rv <- runErrorT $
-                do
-                  cp <- join $ liftIO $ readfile emptyCP ".env"
-                  let x = cp
-                  static <- get x "DEFAULT" "static"
-                  mongoHost <- get x "DEFAULT" "mongoHost"
-                  mongoPort <- get x "DEFAULT" "mongoPort"
-                  mongoUser <- get x "DEFAULT" "mongoUser"
-                  mongoPass <- get x "DEFAULT" "mongoPass"
-                  mongoDatabase <- get x "DEFAULT" "mongoDatabase"
-                  return $ MyConfig static $ MongoParams mongoHost mongoPort mongoUser mongoPass mongoDatabase
-              return rv
-
-getStaticPath :: Either CPError MyConfig -> String
-getStaticPath (Right (MyConfig s _)) = s
-getStaticPath (Left _) = "../client/build"
-
-getMongoDBParams :: Either CPError MyConfig -> MongoParams
-getMongoDBParams (Right (MyConfig _ m)) = m
-getMongoDBParams (Left _) = MongoParams "127.0.0.1" "27017" "" "" ""
 
 ------------------------------------------------------------------------------
 -- | The application's routes.
@@ -62,7 +38,12 @@ routes s = [ ("", serveDirectoryWith defaultDirectoryConfig s) ]
 -- | The application initializer.
 app :: SnapletInit App App
 app = makeSnaplet "battleship" "Battleship application." Nothing $ do
-  c <- liftIO $ getConfig
-  a <- nestSnaplet "api" api (apiInit $ getMongoDBParams c)
-  addRoutes $ routes $ getStaticPath c
+  conf <- getSnapletUserConfig
+  staticPath <- liftIO $ require conf "battleship.static.path"
+  mongoHost <- liftIO $ require conf "battleship.mongo.host"
+  mongoUser <- liftIO $ require conf "battleship.mongo.user"
+  mongoPass <- liftIO $ require conf "battleship.mongo.pass"
+  mongoDb <- liftIO $ require conf "battleship.mongo.db"
+  a <- nestSnaplet "api" api $ apiInit mongoHost mongoUser mongoPass mongoDb
+  addRoutes $ routes $ staticPath
   return $ App a
