@@ -43,16 +43,20 @@ gameRoutes mongoHost mongoUser mongoPass mongoDb = [
 
 getPublicGamesList :: Host -> Username -> Password -> Database -> Handler b GameService ()
 getPublicGamesList mongoHost mongoUser mongoPass mongoDb = do
-  let a = performAction mongoHost mongoUser mongoPass mongoDb
+  pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
+  let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse $ setHeader "Content-Type" "application/json"
   time <- liftIO $ fmap round getPOSIXTime
-  games <- liftIO $ a $ (rest =<< MQ.find (MQ.select ["date" =: ["$gte" =: time - 3600]] "games"))
+  let action = rest =<< MQ.find (MQ.select ["date" =: ["$gte" =: time - 3600], "public" =: True] "games")
+  games <- a $ action
   writeLBS . encode $ fmap (\d -> PublicGame (BS.at "game" d) (BS.at "name" (BS.at "owner" d)) (BS.at "message" d)) games
+  liftIO $ closeConnection pipe
   modifyResponse . setResponseCode $ 200
 
 createGame :: Host -> Username -> Password -> Database -> Handler b GameService ()
 createGame mongoHost mongoUser mongoPass mongoDb = do
-  let a = performAction mongoHost mongoUser mongoPass mongoDb
+  pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
+  let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse $ setHeader "Content-Type" "application/json"
   user <- fmap decode $ readRequestBody 4096
   case user of Just (NewGameUser name message) -> do
@@ -69,60 +73,81 @@ createGame mongoHost mongoUser mongoPass mongoDb = do
                               "guest" =: ([]::[Field]),
                               "chat" =: ([]::[Field])
                             ]
-                 liftIO $ a $ MQ.insert "games" game
+                 a $ MQ.insert "games" game
                  writeLBS $ encode $ NewGame gameId sessionId
                  modifyResponse $ setResponseCode 201
                Nothing -> do
                  writeLBS . encode $ APIError "Name and message can't be empty!"
                  modifyResponse $ setResponseCode 400
+  liftIO $ closeConnection pipe
 
 sendMap :: Host -> Username -> Password -> Database -> Handler b GameService ()
 sendMap mongoHost mongoUser mongoPass mongoDb = do
-  let a = performAction mongoHost mongoUser mongoPass mongoDb
+  pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
+  let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse . setResponseCode $ 202
+  liftIO $ closeConnection pipe
 
 getStatus :: Host -> Username -> Password -> Database -> Handler b GameService ()
 getStatus mongoHost mongoUser mongoPass mongoDb = do
-  let a = performAction mongoHost mongoUser mongoPass mongoDb
+  pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
+  let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse . setResponseCode $ 200
+  liftIO $ closeConnection pipe
 
 inviteBot :: Host -> Username -> Password -> Database -> Handler b GameService ()
 inviteBot mongoHost mongoUser mongoPass mongoDb = do
-  let a = performAction mongoHost mongoUser mongoPass mongoDb
+  pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
+  let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse . setResponseCode $ 501
+  liftIO $ closeConnection pipe
 
 setPublic :: Host -> Username -> Password -> Database -> Handler b GameService ()
 setPublic mongoHost mongoUser mongoPass mongoDb = do
-  let a = performAction mongoHost mongoUser mongoPass mongoDb
+  pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
+  let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse . setResponseCode $ 200
+  liftIO $ closeConnection pipe
 
 connectGame :: Host -> Username -> Password -> Database -> Handler b GameService ()
 connectGame mongoHost mongoUser mongoPass mongoDb = do
-  let a = performAction mongoHost mongoUser mongoPass mongoDb
+  pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
+  let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse . setResponseCode $ 202
+  liftIO $ closeConnection pipe
 
 shoot :: Host -> Username -> Password -> Database -> Handler b GameService ()
 shoot mongoHost mongoUser mongoPass mongoDb = do
-  let a = performAction mongoHost mongoUser mongoPass mongoDb
+  pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
+  let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse . setResponseCode $ 202
+  liftIO $ closeConnection pipe
 
 sendMessage :: Host -> Username -> Password -> Database -> Handler b GameService ()
 sendMessage mongoHost mongoUser mongoPass mongoDb = do
-  let a = performAction mongoHost mongoUser mongoPass mongoDb
+  pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
+  let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse . setResponseCode $ 201
+  liftIO $ closeConnection pipe
 
 readMessages :: Host -> Username -> Password -> Database -> Handler b GameService ()
 readMessages mongoHost mongoUser mongoPass mongoDb = do
-  let a = performAction mongoHost mongoUser mongoPass mongoDb
+  pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
+  let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse . setResponseCode $ 200
+  liftIO $ closeConnection pipe
 
-performAction :: Host -> Username -> Password -> Database -> Action IO a -> IO a
-performAction mongoHost mongoUser mongoPass mongoDb action = do
+connectAndAuth :: Host -> Username -> Password -> Database -> IO Pipe
+connectAndAuth mongoHost mongoUser mongoPass mongoDb = do 
   pipe <- connect mongoHost
   access pipe master mongoDb $ auth mongoUser mongoPass
-  r <- access pipe master mongoDb $ action
-  close pipe
-  return r
+  return pipe
+
+performAction :: Pipe -> Database -> Action IO a -> IO a
+performAction pipe mongoDb action = access pipe master mongoDb action
+
+closeConnection :: Pipe -> IO ()
+closeConnection pipe = close pipe
 
 gameServiceInit :: String -> String -> String -> String -> SnapletInit b GameService
 gameServiceInit mongoHost mongoUser mongoPass mongoDb = makeSnaplet "game" "Battleship Service" Nothing $ do

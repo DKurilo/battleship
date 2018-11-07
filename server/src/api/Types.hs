@@ -29,7 +29,7 @@ instance FromJSON NewGameUser where
 
 data APIError = APIError { e :: String }
 instance ToJSON APIError where
-  toJSON (APIError e) = object [ "error" .= e ]
+  toJSON (APIError e) = toJSON $ e
 
 data NewGame = NewGame { ngGame :: String, ngSession :: String }
 instance ToJSON NewGame where
