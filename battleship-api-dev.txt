@@ -107,7 +107,7 @@ connect
     "session": {session},
     "message": {message},
     "you": {player|guest},
-    "turn": {owner|player|notready},
+    "turn": {owner|player|notready|finished},
     "owner": {
       "name": {name},
       "message": {message},
@@ -136,9 +136,9 @@ shoot
     "x": {x},
     "y": {y},
   }
-  response result (hit|miss|sink) or error
+  response result (hit|miss|sink|win) or error
   202
-  {hit|miss|sink}
+  {hit|miss|sink|win}
   404, 403, 400, 500
   {
     "error": {message}
@@ -171,3 +171,58 @@ read messages
   {
     "error": {message}
   }
+
+
+
+Game:
+{
+  "game": {gameid},
+  "date": {datetime},
+  "message": {message},
+  "owner": {
+    "name": {name},
+    "message": {message},
+    "session": {session},
+    "map": [[0,0,0,1,1,0,0...],[...],[...],...]
+  },
+  "player": {
+    "name": {name},
+    "message": {message},
+    "session": {session},
+    "map": [[0,0,0,1,1,0,0...],[...],[...],...]
+  },
+  "turn": {owner|player|notready|finished},
+  "winner": {owner|player|""},
+  "public": {true|false},
+  "guests": [
+    {
+      "name": {name},
+      "message": {message},
+      "session": {session}
+    },
+    ...
+  ],
+  "chat: [
+    {
+      "name": {name},
+      "message": {message},
+      "date": {date}
+    },
+    ...
+  ]
+}
+
+Initial Game structure:
+{
+  "game": {gameid},
+  "date": {datetime},
+  "owner": {
+    "name": {name},
+    "message": {message},
+    "session": {session},
+  },
+  "turn": "notready",
+  "public": false,
+  "guests": [],
+  "chat: []
+}
