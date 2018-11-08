@@ -41,7 +41,8 @@ gameRoutes mongoHost mongoUser mongoPass mongoDb = [
     ("/:gameid/:session", method GET $ getStatus mongoHost mongoUser mongoPass mongoDb),
     ("/:gameid/:session/invitebot", method POST $ inviteBot mongoHost mongoUser mongoPass mongoDb),
     ("/:gameid/:session/setpublic", method POST $ setPublic mongoHost mongoUser mongoPass mongoDb),
-    ("/:gameid/:session/connect/:role", method POST $ connectGame mongoHost mongoUser mongoPass mongoDb),
+    ("/:gameid/connect/player", method POST $ connectGamePlayer mongoHost mongoUser mongoPass mongoDb),
+    ("/:gameid/connect/guest", method POST $ connectGameGuest mongoHost mongoUser mongoPass mongoDb),
     ("/:gameid/:session/shoot", method POST $ shoot mongoHost mongoUser mongoPass mongoDb),
     ("/:gameid/:session/chat", method POST $ sendMessage mongoHost mongoUser mongoPass mongoDb),
     ("/:gameid/:session/chat", method GET $ readMessages mongoHost mongoUser mongoPass mongoDb)
@@ -100,7 +101,7 @@ createGame mongoHost mongoUser mongoPass mongoDb = do
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse $ setHeader "Content-Type" "application/json"
-  user <- fmap decode $ readRequestBody 4096
+  user <- fmap (\x -> decode x :: Maybe NewGameUser) $ readRequestBody 4096
   case user of Just (NewGameUser name message) -> do
                  gameId <- liftIO $ UUID.toString <$> nextRandom
                  sessionId <- liftIO $ UUID.toString <$> nextRandom
@@ -161,7 +162,7 @@ setPublic mongoHost mongoUser mongoPass mongoDb = do
   let a action = liftIO $ performAction pipe mongoDb action
   pgame <- getParam "gameid"
   session <- getParam "session"
-  message <- fmap decode $ readRequestBody 4096
+  message <- fmap (\x -> decode x :: Maybe Message) $ readRequestBody 4096
   case message of 
         Just (Message msg) -> do
               let game = case pgame of Just g -> B.unpack g
@@ -190,11 +191,94 @@ setPublic mongoHost mongoUser mongoPass mongoDb = do
               modifyResponse $ setResponseCode 400
   liftIO $ closeConnection pipe
 
-connectGame :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
-connectGame mongoHost mongoUser mongoPass mongoDb = do
+---------------------------------
+-- connect
+--   post game id, username, role (guest|player), short message
+--   POST /api/games/{gameid}/connect/{guest|player}
+--   {
+--     "name": "name",
+--     "message": "message"
+--   }
+--   response session, or error.
+--   202
+--   {
+--     "game": {game}
+--     "session": {session}
+--   }
+--   404, 403, 400, 500
+--   {message}
+connectGamePlayer :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
+connectGamePlayer mongoHost mongoUser mongoPass mongoDb = do
+  time <- liftIO $ fmap round getPOSIXTime
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
-  modifyResponse . setResponseCode $ 202
+  pgame <- getParam "gameid"
+  player <- fmap (\x -> decode x :: Maybe NewGameUser) $ readRequestBody 4096
+  case player of 
+        Just (NewGameUser name message) -> do
+              let game = case pgame of Just g -> B.unpack g
+                                       Nothing -> ""
+              rights <- liftIO $ fillRights pipe mongoDb game Nothing
+              case rights of
+                GameRights True False False NOTREADY _ _ _ -> do
+                  sessionId <- liftIO $ UUID.toString <$> nextRandom
+                  let act = [(
+                               [
+                                 "game" =: game
+                               ]::Selector,
+                               [
+                                 "$set" =: ["player" =: ["name" =: name, "message" =: message, "session" =: sessionId], "turn" =: "config"],
+                                 "$push" =: ["chat" =: [ "name" =: name, "time" =: time, "message" =: ("Welcome " ++ name ++ ". You've joined as a player!")]]
+                               ]::Document,
+                               [ ]::[UpdateOption]
+                            )]
+                  a $ MQ.updateAll "games" act
+                  writeLBS $ encode $ NewGame game sessionId
+                  modifyResponse . setResponseCode $ 200
+                _ -> do
+                  writeLBS . encode $ APIError "Can't connect as player!"
+                  modifyResponse $ setResponseCode 400
+        _ -> do
+              writeLBS . encode $ APIError "Name and message are required!"
+              modifyResponse $ setResponseCode 400
+  liftIO $ closeConnection pipe
+
+connectGameGuest :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
+connectGameGuest mongoHost mongoUser mongoPass mongoDb = do
+  time <- liftIO $ fmap round getPOSIXTime
+  pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
+  let a action = liftIO $ performAction pipe mongoDb action
+  pgame <- getParam "gameid"
+  player <- fmap (\x -> decode x :: Maybe NewGameUser) $ readRequestBody 4096
+  case player of 
+        Just (NewGameUser name message) -> do
+              let game = case pgame of Just g -> B.unpack g
+                                       Nothing -> ""
+              rights <- liftIO $ fillRights pipe mongoDb game Nothing
+              case rights of
+                GameRights True _ _ _ _ _ _ -> do
+                  sessionId <- liftIO $ UUID.toString <$> nextRandom
+                  let act = [(
+                               [
+                                 "game" =: game
+                               ]::Selector,
+                               [
+                                 "$push" =: [
+                                              "chat" =: [ "name" =: name, "time" =: time, "message" =: ("Welcome " ++ name ++ ". You've joined as a guest!")],
+                                              "guests" =: ["name" =: name, "message" =: message, "session" =: sessionId]
+                                            ]
+                               ]::Document,
+                               [ ]::[UpdateOption]
+                            )]
+                  a $ MQ.updateAll "games" act
+                  writeLBS $ encode $ NewGame game sessionId
+                  modifyResponse . setResponseCode $ 200
+                _ -> do
+                  writeLBS . encode $ APIError "Can't connect as guest!"
+                  modifyResponse $ setResponseCode 400
+        _ -> do
+              writeLBS . encode $ APIError "Name and message are required!"
+              modifyResponse $ setResponseCode 400
   liftIO $ closeConnection pipe
 
 shoot :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
@@ -228,6 +312,7 @@ fillRights pipe mongoDb game session = do
   let turn v = case v of Right (BS.String "owner") -> OWNER
                          Right (BS.String "player") -> PLAYER
                          Right (BS.String "finished") -> FINISHED
+                         Right (BS.String "config") -> CONFIG
                          _ -> NOTREADY
   case game of 
     Just g -> 

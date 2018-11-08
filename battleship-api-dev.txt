@@ -12,9 +12,7 @@ create game
     "session": {session}
   }
   400, 500
-  {
-    error: {message}
-  }
+  {message}
 get list of opened
   sends nothing
   GET /api/games/
@@ -29,9 +27,26 @@ get list of opened
     ...
   ]
   500
+  {message}
+invite stranger
+  post game id and session (only owner can invite strangers) and message
+  POST /api/games/{gameid}/{session}/setpublic
   {
-    "error": {message}
+    "message": {message}
   }
+  response success if added in list or error
+  200
+  "ok"
+  404, 500
+  {
+    "error": {error}
+  }
+
+
+
+
+
+
 send map
   post session id (owner and player can send map), json with map. Only empty or ship on map
   POST /api/games/{gameid}/{session}/setmap
@@ -40,9 +55,7 @@ send map
   202
   "ok"
   406, 500
-  {
-    error: {message}
-  }
+  {message}
 get game status
   send game id and session
   GET /api/games/{gameid}/{session}/
@@ -84,51 +97,20 @@ invite a bot (when bot will be ready...)
   {
     "error": {message}
   }
-invite stranger
-  post game id and session (only owner can invite strangers) and message
-  POST /api/games/{gameid}/{session}/setpublic
-  {
-    "message": {message}
-  }
-  response success if added in list or error
-  200
-  "ok"
-  404, 500
-  {
-    "error": {error}
-  }
 connect
   post game id, username, role (guest|player), short message
   POST /api/games/{gameid}/connect/{guest|player}
-  response role (guest|player), session, current game state or error.
+  {
+    "name": {name},
+    "message": {message}
+  }
+  response session, or error.
   202
   {
-    "game": {gameid},
-    "session": {session},
-    "message": {message},
-    "you": {player|guest},
-    "turn": {owner|player|notready|finished},
-    "owner": {
-      "name": {name},
-      "message": {message},
-      "map": [[0,0,0,1,1,0,0...],[...],[...],...]
-    },
-    "player": {
-      "name": {name},
-      "message": {message},
-      "map": [[0,0,0,1,1,0,0...],[...],[...],...]
-    },
-    "guests": [
-      {
-        "name": {name},
-        "message": {message}
-      }
-    ]
+    "session": {session}
   }
   404, 403, 400, 500
-  {
-    "error": {message}
-  }
+  {message}
 shoot
   post game id, session (only owner and player can shoot and only in ther turn) and coords
   POST /api/games/{gameid}/{session}/shoot

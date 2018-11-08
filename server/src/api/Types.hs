@@ -11,7 +11,7 @@ import Data.Bson as BS
 import Data.Aeson
 import Control.Monad
 
-data Turn = OWNER|PLAYER|NOTREADY|FINISHED
+data Turn = OWNER|PLAYER|NOTREADY|CONFIG|FINISHED
 
 data GameRights = GameRights { grIsExists :: Bool
                              , grIsOwner :: Bool
