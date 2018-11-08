@@ -11,6 +11,17 @@ import Data.Bson as BS
 import Data.Aeson
 import Control.Monad
 
+data Turn = OWNER|PLAYER|NOTREADY|FINISHED
+
+data GameRights = GameRights { grIsExists :: Bool
+                             , grIsOwner :: Bool
+                             , grIsPlayer :: Bool
+                             , grTurn :: Turn
+                             , grIsGuest :: Bool
+                             , grMyName :: String
+                             , grPublic :: Bool
+                             }
+
 data PublicGame = PublicGame { pgGameId :: String
                              , pgOwnerName :: String
                              , pgMessage :: String
@@ -25,6 +36,12 @@ instance FromJSON NewGameUser where
   parseJSON (Object v) =
     NewGameUser <$> v .: "name"
                 <*> v .: "message"
+  parseJSON _ = mzero
+
+data Message = Message { msgMessage :: String }
+instance FromJSON Message where
+  parseJSON (Object v) =
+    Message <$> v .: "message"
   parseJSON _ = mzero
 
 data APIError = APIError { e :: String }
