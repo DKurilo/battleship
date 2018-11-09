@@ -167,7 +167,8 @@ setPublic mongoHost mongoUser mongoPass mongoDb = do
         Just (Message msg) -> do
               let game = case pgame of Just g -> B.unpack g
                                        Nothing -> ""
-              rights <- liftIO $ fillRights pipe mongoDb game (B.unpack <$> session)
+              let msess = (B.unpack <$> session)
+              rights <- liftIO $ fillRights pipe mongoDb game msess
               case rights of
                 GameRights True True _ NOTREADY _ n False -> do
                   let act = [(
@@ -175,12 +176,18 @@ setPublic mongoHost mongoUser mongoPass mongoDb = do
                                  "game" =: game
                                ]::Selector,
                                [
-                                 "$set" =: ["public" =: True, "message" =: msg],
-                                 "$push" =: ["chat" =: [ "name" =: n, "time" =: time, "message" =: "Attention! Game is public now!"]]
+                                 "$set" =: ["public" =: True, "message" =: msg]
                                ]::Document,
                                [ ]::[UpdateOption]
                             )]
                   a $ MQ.updateAll "games" act
+                  let chat = [ "game" =: game
+                             , "name" =: n
+                             , "session" =: msess
+                             , "time" =: time
+                             , "message" =: "Attention! Game is public now!"
+                             ]::Document
+                  a $ MQ.insert "chats" chat
                   writeLBS "ok"
                   modifyResponse . setResponseCode $ 200
                 _ -> do
@@ -227,12 +234,18 @@ connectGamePlayer mongoHost mongoUser mongoPass mongoDb = do
                                  "game" =: game
                                ]::Selector,
                                [
-                                 "$set" =: ["player" =: ["name" =: name, "message" =: message, "session" =: sessionId], "turn" =: "config"],
-                                 "$push" =: ["chat" =: [ "name" =: name, "time" =: time, "message" =: ("Welcome " ++ name ++ ". You've joined as a player!")]]
+                                 "$set" =: ["player" =: ["name" =: name, "message" =: message, "session" =: sessionId], "turn" =: "config"]
                                ]::Document,
                                [ ]::[UpdateOption]
                             )]
                   a $ MQ.updateAll "games" act
+                  let chat = [ "game" =: game
+                             , "name" =: name
+                             , "session" =: sessionId
+                             , "time" =: time
+                             , "message" =: ("joined as a player!")
+                             ]::Document
+                  a $ MQ.insert "chats" chat
                   writeLBS $ encode $ NewGame game sessionId
                   modifyResponse . setResponseCode $ 200
                 _ -> do
@@ -263,14 +276,18 @@ connectGameGuest mongoHost mongoUser mongoPass mongoDb = do
                                  "game" =: game
                                ]::Selector,
                                [
-                                 "$push" =: [
-                                              "chat" =: [ "name" =: name, "time" =: time, "message" =: ("Welcome " ++ name ++ ". You've joined as a guest!")],
-                                              "guests" =: ["name" =: name, "message" =: message, "session" =: sessionId]
-                                            ]
+                                 "$push" =: ["guests" =: ["name" =: name, "message" =: message, "session" =: sessionId]]
                                ]::Document,
                                [ ]::[UpdateOption]
                             )]
                   a $ MQ.updateAll "games" act
+                  let chat = [ "game" =: game
+                             , "name" =: name
+                             , "session" =: sessionId
+                             , "time" =: time
+                             , "message" =: ("joined as a guest!")
+                             ]::Document
+                  a $ MQ.insert "chats" chat
                   writeLBS $ encode $ NewGame game sessionId
                   modifyResponse . setResponseCode $ 200
                 _ -> do
@@ -288,13 +305,76 @@ shoot mongoHost mongoUser mongoPass mongoDb = do
   modifyResponse . setResponseCode $ 202
   liftIO $ closeConnection pipe
 
+
+--------------------------
+-- write message
+--   post game id, session, message
+--   POST /api/games/{gameid}/{session}/chat/
+--   {message}
+--   response success or error
+--   201
+--   "ok"
+--   404, 403, 400, 500
+--   {
+--     "error": {message}
+--   }
 sendMessage :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
 sendMessage mongoHost mongoUser mongoPass mongoDb = do
+  time <- liftIO $ fmap round getPOSIXTime
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
-  modifyResponse . setResponseCode $ 201
+  pgame <- getParam "gameid"
+  session <- getParam "session"
+  mmessage <- fmap (\x -> decode x :: Maybe String) $ readRequestBody 4096
+  case mmessage of 
+        Just message -> do
+              let game = case pgame of Just g -> B.unpack g
+                                       Nothing -> ""
+              let msess = B.unpack <$> session
+              rights <- liftIO $ fillRights pipe mongoDb game msess
+              let chat n = [ "game" =: game
+                           , "name" =: n
+                           , "session" =: msess
+                           , "time" =: time
+                           , "message" =: message
+                           ]::Document
+              case rights of
+                GameRights True True _ _ _ n _ -> do
+                  a $ MQ.insert "chats" $ chat n
+                  writeLBS "ok"
+                  modifyResponse . setResponseCode $ 201
+                GameRights True _ True _ _ n _ -> do
+                  a $ MQ.insert "chats" $ chat n
+                  writeLBS "ok"
+                  modifyResponse . setResponseCode $ 201
+                GameRights True _ _ _ True n _ -> do
+                  a $ MQ.insert "chats" $ chat n
+                  writeLBS "ok"
+                  modifyResponse . setResponseCode $ 201
+                _ -> do
+                   writeLBS . encode $ APIError "Can't write message here!"
+                   modifyResponse $ setResponseCode 400
+        _ -> do
+              writeLBS . encode $ APIError "Can't find message!"
+              modifyResponse $ setResponseCode 400
   liftIO $ closeConnection pipe
 
+------------------------------
+-- read messages
+--   send game id, session, last check date(or nothing)
+--   GET /api/games/{gameid}/{session}/chat?lastcheck={date}
+--   response list of [{name, message, date}], last check date or error
+--   200
+--   [
+--     {
+--       "name": {name},
+--       "message": {message},
+--       "date": {date}
+--     },
+--     ...
+--   ]
+--   404, 500
+--   {message}
 readMessages :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
 readMessages mongoHost mongoUser mongoPass mongoDb = do
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
@@ -341,9 +421,9 @@ fillRights pipe mongoDb game session = do
                                          _ -> False)) a
                 _ -> False
           let uname = case isowner of
-                True -> T.unpack $ BS.at "session" $ BS.at "owner" g
+                True -> T.unpack $ BS.at "name" $ BS.at "owner" g
                 False -> case isplayer of
-                      True -> T.unpack $ BS.at "session" $ BS.at "player" g
+                      True -> T.unpack $ BS.at "name" $ BS.at "player" g
                       False -> case isguest of
                             True -> T.unpack $ BS.at "name" $ Prelude.head $ Prelude.filter (\x -> (BS.at "session" x) == sess) $ BS.at "guests" g
                             False -> ""

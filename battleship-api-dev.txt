@@ -41,7 +41,31 @@ invite stranger
   {
     "error": {error}
   }
-
+connect
+  post game id, username, role (guest|player), short message
+  POST /api/games/{gameid}/connect/{guest|player}
+  {
+    "name": {name},
+    "message": {message}
+  }
+  response session, or error.
+  202
+  {
+    "session": {session}
+  }
+  404, 403, 400, 500
+  {message}
+write message
+  post game id, session, message
+  POST /api/games/{gameid}/{session}/chat/
+  {message}
+  response success or error
+  201
+  "ok"
+  404, 403, 400, 500
+  {
+    "error": {message}
+  }
 
 
 
@@ -97,20 +121,6 @@ invite a bot (when bot will be ready...)
   {
     "error": {message}
   }
-connect
-  post game id, username, role (guest|player), short message
-  POST /api/games/{gameid}/connect/{guest|player}
-  {
-    "name": {name},
-    "message": {message}
-  }
-  response session, or error.
-  202
-  {
-    "session": {session}
-  }
-  404, 403, 400, 500
-  {message}
 shoot
   post game id, session (only owner and player can shoot and only in ther turn) and coords
   POST /api/games/{gameid}/{session}/shoot
@@ -121,17 +131,6 @@ shoot
   response result (hit|miss|sink|win) or error
   202
   {hit|miss|sink|win}
-  404, 403, 400, 500
-  {
-    "error": {message}
-  }
-write message
-  post game id, session, message
-  POST /api/games/{gameid}/{session}/chat/
-  {message}
-  response success or error
-  201
-  "ok"
   404, 403, 400, 500
   {
     "error": {message}
@@ -150,10 +149,7 @@ read messages
     ...
   ]
   404, 500
-  {
-    "error": {message}
-  }
-
+  {message}
 
 
 Game:
@@ -184,14 +180,14 @@ Game:
     },
     ...
   ],
-  "chat: [
-    {
-      "name": {name},
-      "message": {message},
-      "date": {date}
-    },
-    ...
-  ]
+}
+
+Messages:
+{
+  "game": {game}
+  "name": {name},
+  "message": {message},
+  "date": {date}
 }
 
 Initial Game structure:
