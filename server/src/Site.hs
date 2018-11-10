@@ -44,6 +44,7 @@ app = makeSnaplet "battleship" "Battleship application." Nothing $ do
   mongoUser <- liftIO $ require conf "battleship.mongo.user"
   mongoPass <- liftIO $ require conf "battleship.mongo.pass"
   mongoDb <- liftIO $ require conf "battleship.mongo.db"
-  a <- nestSnaplet "api" api $ apiInit mongoHost mongoUser mongoPass mongoDb
+  rulesPath <- liftIO $ require conf "battleship.rules"
+  a <- nestSnaplet "api" api $ apiInit mongoHost mongoUser mongoPass mongoDb rulesPath
   addRoutes $ routes $ staticPath
   return $ App a

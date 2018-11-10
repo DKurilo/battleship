@@ -3,7 +3,8 @@ create game
   POST /api/games
   {
     "username": {username},
-    "message": {message}
+    "message": {message},
+    "rules": {rulesetId}
   }
   response new game id and session or error
   201
@@ -22,7 +23,8 @@ get list of opened
     {
       "game": {gameid},
       "owner": {name},
-      "message": {game message}
+      "message": {game message},
+      "rules": {rulesetId}
     },
     ...
   ]
@@ -66,6 +68,40 @@ write message
   {
     "error": {message}
   }
+get rules list
+  sends nothing
+  GET /api/games/rules
+  response rules list or error
+  200
+  [
+    {
+      "id": {id}
+      "name": {name},
+      "description": {text},
+      "rules": {ship set}
+    }
+  ]
+  404, 403, 400, 500
+  {
+    "error": {message}
+  }
+read messages
+  send game id, session, last check date(or nothing)
+  GET /api/games/{gameid}/{session}/chat?lastcheck={date}
+  response list of [{name, message, date}], last check date or error
+  200
+  [
+    {
+      "name": {name},
+      "message": {message},
+      "time": {date}
+    },
+    ...
+  ]
+  404, 500
+  {message}
+
+
 
 
 
@@ -83,7 +119,7 @@ send map
 get game status
   send game id and session
   GET /api/games/{gameid}/{session}/
-  response status (map contain only unknown or hit) or error
+  response status (map contain only unknown or hit if game is not finished and everything if finished) or error
   200
   {
     "game": {gameid},
@@ -135,28 +171,26 @@ shoot
   {
     "error": {message}
   }
-read messages
-  send game id, session, last check date(or nothing)
-  GET /api/games/{gameid}/{session}/chat?lastcheck={date}
-  response list of [{name, message, date}], last check date or error
-  200
-  [
-    {
-      "name": {name},
-      "message": {message},
-      "date": {date}
-    },
-    ...
-  ]
-  404, 500
-  {message}
 
 
+
+Rules:
+[
+  {
+    "id": {id},
+    "name": {friendlyName},
+    "description": {description},
+    "ships": [[1,4],..]
+  },
+  ...
+]
+ 
 Game:
 {
   "game": {gameid},
   "date": {datetime},
   "message": {message},
+  "rules": {free|starwars|classic|...}
   "owner": {
     "name": {name},
     "message": {message},
@@ -187,13 +221,14 @@ Messages:
   "game": {game}
   "name": {name},
   "message": {message},
-  "date": {date}
+  "time": {date}
 }
 
 Initial Game structure:
 {
   "game": {gameid},
   "date": {datetime},
+  "rules": {free|starwars|classic|...},
   "owner": {
     "name": {name},
     "message": {message},
@@ -204,3 +239,22 @@ Initial Game structure:
   "guests": [],
   "chat: []
 }
+
+
+Notes:
+Cheatfree games with predefined rules.  
+Settings are in config file.  
+For each rule:  
+rules: text with description  
+ships description:   
+[(1,4), (2,3), (3,2), (4,1)]  
+in send map I need to check rules. To do it:  
+get list of counts for separated non empty cells: [0,0,0,1,1,0,1,1,1,0] -> [2,3]  
+get the same from transposed map  
+get amount of twos, threes and so on. It should be as it is in the rules set.  
+for ones amount should be sum of not-ones from another list plus amount of ones  
+
+
+
+
+

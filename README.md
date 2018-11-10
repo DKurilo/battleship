@@ -11,7 +11,7 @@ yarn build
 ```
   
 To build server:  
-Copy env.template to .env. Fix parameters.  
+Copy `devel.cfg.template` to `devel.cfg`. Fix parameters.  
 ```
 cabal install
 cabal run --p 9000

@@ -23,6 +23,8 @@ import Snap.Core
 import Snap.Snaplet as SN
 import qualified Data.ByteString.Char8 as B
 import Data.Text as T
+import Data.Text.IO as TIO
+import Data.Text.Encoding
 import Data.Time.Clock.POSIX
 
 data GameService = GameService { }
@@ -30,14 +32,15 @@ data GameService = GameService { }
 makeLenses ''GameService
 
 gemeTimeout :: Int
-gemeTimeout = 3600
+gemeTimeout = 360000
 ---------------------
 -- Routes
-gameRoutes :: Host -> Username -> Password -> Database -> [(B.ByteString, SN.Handler b GameService ())]
-gameRoutes mongoHost mongoUser mongoPass mongoDb = [
+gameRoutes :: Host -> Username -> Password -> Database -> FilePath -> [(B.ByteString, SN.Handler b GameService ())]
+gameRoutes mongoHost mongoUser mongoPass mongoDb rulePath = [
     ("/", method GET $ getPublicGamesList mongoHost mongoUser mongoPass mongoDb),
-    ("/", method POST $ createGame mongoHost mongoUser mongoPass mongoDb),
-    ("/:gameid/:session/setmap", method POST $ sendMap mongoHost mongoUser mongoPass mongoDb),
+    ("/", method POST $ createGame mongoHost mongoUser mongoPass mongoDb rulePath),
+    ("/rules", method GET $ getRules rulePath),
+    ("/:gameid/:session/setmap", method POST $ sendMap mongoHost mongoUser mongoPass mongoDb rulePath),
     ("/:gameid/:session", method GET $ getStatus mongoHost mongoUser mongoPass mongoDb),
     ("/:gameid/:session/invitebot", method POST $ inviteBot mongoHost mongoUser mongoPass mongoDb),
     ("/:gameid/:session/setpublic", method POST $ setPublic mongoHost mongoUser mongoPass mongoDb),
@@ -72,10 +75,10 @@ getPublicGamesList mongoHost mongoUser mongoPass mongoDb = do
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse $ setHeader "Content-Type" "application/json"
-  time <- liftIO $ fmap round getPOSIXTime
+  time <- liftIO $ round <$> getPOSIXTime
   let action = rest =<< MQ.find (MQ.select ["date" =: ["$gte" =: time - gemeTimeout], "public" =: True] "games")
   games <- a $ action
-  writeLBS . encode $ fmap (\d -> PublicGame (BS.at "game" d) (BS.at "name" (BS.at "owner" d)) (BS.at "message" d)) games
+  writeLBS . encode $ fmap (\d -> PublicGame (BS.at "game" d) (BS.at "name" (BS.at "owner" d)) (BS.at "message" d) (BS.at "rules" d)) games
   liftIO $ closeConnection pipe
   modifyResponse . setResponseCode $ 200
 
@@ -96,43 +99,82 @@ getPublicGamesList mongoHost mongoUser mongoPass mongoDb = do
 --   }
 --   400, 500
 --   {message}
-createGame :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
-createGame mongoHost mongoUser mongoPass mongoDb = do
+createGame :: Host -> Username -> Password -> Database -> FilePath -> SN.Handler b GameService ()
+createGame mongoHost mongoUser mongoPass mongoDb rulePath = do
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse $ setHeader "Content-Type" "application/json"
   user <- fmap (\x -> decode x :: Maybe NewGameUser) $ readRequestBody 4096
-  case user of Just (NewGameUser name message) -> do
+  case user of Just (NewGameUser name message rules) -> do
                  gameId <- liftIO $ UUID.toString <$> nextRandom
                  sessionId <- liftIO $ UUID.toString <$> nextRandom
-                 time <- liftIO $ fmap round getPOSIXTime
+                 time <- liftIO $ round <$> getPOSIXTime
+                 crules <- liftIO $ currentRulesId rules rulePath
                  let game = [
                               "game" =: gameId,
                               "date" =: time,
                               "message" =: "",
                               "owner" =: ["name" =: name, "message" =: message, "session" =: sessionId],
                               "turn" =: "notready",
-                              "public" =: False
+                              "public" =: False,
+                              "rules" =: crules
                             ]
                  a $ MQ.insert "games" game
-                 writeLBS $ encode $ NewGame gameId sessionId
+                 writeLBS $ encode $ NewGame gameId sessionId crules
                  modifyResponse $ setResponseCode 201
                Nothing -> do
                  writeLBS . encode $ APIError "Name and message can't be empty!"
                  modifyResponse $ setResponseCode 400
   liftIO $ closeConnection pipe
 
-sendMap :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
-sendMap mongoHost mongoUser mongoPass mongoDb = do
+-----------------------
+-- send map
+--   post session id (owner and player can send map), json with map. Only empty or ship on map
+--   POST /api/games/{gameid}/{session}/setmap
+--   [[0,0,0,1,1,0,0...],[...],[...],...]
+--   response ok or error (wrong map or other)
+--   202
+--   "ok"
+--   406, 500
+--   {message}
+sendMap :: Host -> Username -> Password -> Database -> FilePath -> SN.Handler b GameService ()
+sendMap mongoHost mongoUser mongoPass mongoDb rulePath = do
+  time <- liftIO $ round <$> getPOSIXTime
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
-  modifyResponse . setResponseCode $ 202
+  modifyResponse $ setHeader "Content-Type" "application/json"
+  pgame <- getParam "gameid"
+  session <- getParam "session"
+  let game = case pgame of Just g -> B.unpack g
+                           Nothing -> ""
+  let msess = B.unpack <$> session
+  rights <- liftIO $ fillRights pipe mongoDb game msess
+  case rights of
+    GameRights True True _ NOTREADY _ n _ rid -> do
+      myrules <- liftIO $ currentRules rid rulePath
+      seamap <- fmap (\x -> decode x :: Maybe [[Int]]) $ readRequestBody 4096
+      writeLBS . encode $ APIError "We can save it for Owner 1."
+      modifyResponse $ setResponseCode 200
+    GameRights True True _ CONFIG _ n _ rid -> do
+      myrules <- liftIO $ currentRules rid rulePath
+      seamap <- fmap (\x -> decode x :: Maybe [[Int]]) $ readRequestBody 4096
+      writeLBS . encode $ APIError "We can save it Owner 2."
+      modifyResponse $ setResponseCode 200      
+    GameRights True _ True CONFIG _ n _ rid -> do
+      myrules <- liftIO $ currentRules rid rulePath
+      seamap <- fmap (\x -> decode x :: Maybe [[Int]]) $ readRequestBody 4096
+      writeLBS . encode $ APIError "We can save it for Player."
+      modifyResponse $ setResponseCode 200
+    _ -> do
+       writeLBS . encode $ APIError "Can't send map for this game!"
+       modifyResponse $ setResponseCode 403
   liftIO $ closeConnection pipe
 
 getStatus :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
 getStatus mongoHost mongoUser mongoPass mongoDb = do
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
+  modifyResponse $ setHeader "Content-Type" "application/json"
   modifyResponse . setResponseCode $ 200
   liftIO $ closeConnection pipe
 
@@ -157,9 +199,10 @@ inviteBot mongoHost mongoUser mongoPass mongoDb = do
 --   {error}
 setPublic :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
 setPublic mongoHost mongoUser mongoPass mongoDb = do
-  time <- liftIO $ fmap round getPOSIXTime
+  time <- liftIO $ round <$> getPOSIXTime
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
+  modifyResponse $ setHeader "Content-Type" "application/json"
   pgame <- getParam "gameid"
   session <- getParam "session"
   message <- fmap (\x -> decode x :: Maybe Message) $ readRequestBody 4096
@@ -170,7 +213,7 @@ setPublic mongoHost mongoUser mongoPass mongoDb = do
               let msess = (B.unpack <$> session)
               rights <- liftIO $ fillRights pipe mongoDb game msess
               case rights of
-                GameRights True True _ NOTREADY _ n False -> do
+                GameRights True True _ NOTREADY _ n False _ -> do
                   let act = [(
                                [
                                  "game" =: game
@@ -216,18 +259,19 @@ setPublic mongoHost mongoUser mongoPass mongoDb = do
 --   {message}
 connectGamePlayer :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
 connectGamePlayer mongoHost mongoUser mongoPass mongoDb = do
-  time <- liftIO $ fmap round getPOSIXTime
+  time <- liftIO $ round <$> getPOSIXTime
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
+  modifyResponse $ setHeader "Content-Type" "application/json"
   pgame <- getParam "gameid"
-  player <- fmap (\x -> decode x :: Maybe NewGameUser) $ readRequestBody 4096
+  player <- fmap (\x -> decode x :: Maybe GameUser) $ readRequestBody 4096
   case player of 
-        Just (NewGameUser name message) -> do
+        Just (GameUser name message) -> do
               let game = case pgame of Just g -> B.unpack g
                                        Nothing -> ""
               rights <- liftIO $ fillRights pipe mongoDb game Nothing
               case rights of
-                GameRights True False False NOTREADY _ _ _ -> do
+                GameRights True False False NOTREADY _ _ _ _ -> do
                   sessionId <- liftIO $ UUID.toString <$> nextRandom
                   let act = [(
                                [
@@ -246,7 +290,7 @@ connectGamePlayer mongoHost mongoUser mongoPass mongoDb = do
                              , "message" =: ("joined as a player!")
                              ]::Document
                   a $ MQ.insert "chats" chat
-                  writeLBS $ encode $ NewGame game sessionId
+                  writeLBS $ encode $ SessionInfo game sessionId
                   modifyResponse . setResponseCode $ 200
                 _ -> do
                   writeLBS . encode $ APIError "Can't connect as player!"
@@ -258,18 +302,19 @@ connectGamePlayer mongoHost mongoUser mongoPass mongoDb = do
 
 connectGameGuest :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
 connectGameGuest mongoHost mongoUser mongoPass mongoDb = do
-  time <- liftIO $ fmap round getPOSIXTime
+  time <- liftIO $ round <$> getPOSIXTime
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
+  modifyResponse $ setHeader "Content-Type" "application/json"
   pgame <- getParam "gameid"
-  player <- fmap (\x -> decode x :: Maybe NewGameUser) $ readRequestBody 4096
+  player <- fmap (\x -> decode x :: Maybe GameUser) $ readRequestBody 4096
   case player of 
-        Just (NewGameUser name message) -> do
+        Just (GameUser name message) -> do
               let game = case pgame of Just g -> B.unpack g
                                        Nothing -> ""
               rights <- liftIO $ fillRights pipe mongoDb game Nothing
               case rights of
-                GameRights True _ _ _ _ _ _ -> do
+                GameRights True _ _ _ _ _ _ _ -> do
                   sessionId <- liftIO $ UUID.toString <$> nextRandom
                   let act = [(
                                [
@@ -288,7 +333,7 @@ connectGameGuest mongoHost mongoUser mongoPass mongoDb = do
                              , "message" =: ("joined as a guest!")
                              ]::Document
                   a $ MQ.insert "chats" chat
-                  writeLBS $ encode $ NewGame game sessionId
+                  writeLBS $ encode $ SessionInfo game sessionId
                   modifyResponse . setResponseCode $ 200
                 _ -> do
                   writeLBS . encode $ APIError "Can't connect as guest!"
@@ -302,6 +347,7 @@ shoot :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
 shoot mongoHost mongoUser mongoPass mongoDb = do
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
+  modifyResponse $ setHeader "Content-Type" "application/json"
   modifyResponse . setResponseCode $ 202
   liftIO $ closeConnection pipe
 
@@ -320,9 +366,10 @@ shoot mongoHost mongoUser mongoPass mongoDb = do
 --   }
 sendMessage :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
 sendMessage mongoHost mongoUser mongoPass mongoDb = do
-  time <- liftIO $ fmap round getPOSIXTime
+  time <- liftIO $ round <$> getPOSIXTime
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
+  modifyResponse $ setHeader "Content-Type" "application/json"
   pgame <- getParam "gameid"
   session <- getParam "session"
   mmessage <- fmap (\x -> decode x :: Maybe String) $ readRequestBody 4096
@@ -339,24 +386,24 @@ sendMessage mongoHost mongoUser mongoPass mongoDb = do
                            , "message" =: message
                            ]::Document
               case rights of
-                GameRights True True _ _ _ n _ -> do
+                GameRights True True _ _ _ n _ _ -> do
                   a $ MQ.insert "chats" $ chat n
                   writeLBS "ok"
                   modifyResponse . setResponseCode $ 201
-                GameRights True _ True _ _ n _ -> do
+                GameRights True _ True _ _ n _ _ -> do
                   a $ MQ.insert "chats" $ chat n
                   writeLBS "ok"
                   modifyResponse . setResponseCode $ 201
-                GameRights True _ _ _ True n _ -> do
+                GameRights True _ _ _ True n _ _ -> do
                   a $ MQ.insert "chats" $ chat n
                   writeLBS "ok"
                   modifyResponse . setResponseCode $ 201
                 _ -> do
                    writeLBS . encode $ APIError "Can't write message here!"
-                   modifyResponse $ setResponseCode 400
+                   modifyResponse $ setResponseCode 403
         _ -> do
               writeLBS . encode $ APIError "Can't find message!"
-              modifyResponse $ setResponseCode 400
+              modifyResponse $ setResponseCode 404
   liftIO $ closeConnection pipe
 
 ------------------------------
@@ -379,15 +426,67 @@ readMessages :: Host -> Username -> Password -> Database -> SN.Handler b GameSer
 readMessages mongoHost mongoUser mongoPass mongoDb = do
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
-  modifyResponse . setResponseCode $ 200
+  modifyResponse $ setHeader "Content-Type" "application/json"
+  pgame <- getParam "gameid"
+  pltime <- getQueryParam "lastcheck"
+  session <- getParam "session"
+  let game = case pgame of Just g -> B.unpack g
+                           Nothing -> ""
+  let msess = B.unpack <$> session
+  let ltime = (Prelude.read (case pltime of Just t -> B.unpack t
+                                            Nothing -> "0")) :: Integer
+  let action g t = rest =<< MQ.find (MQ.select ["time" =: ["$gt" =: t], "game" =: g] "chats")
+  rights <- liftIO $ fillRights pipe mongoDb game msess
+  case rights of
+    GameRights True True _ _ _ _ _ _ -> do
+      messages <- a $ action game ltime
+      writeLBS . encode $ fmap (\m -> ChatMessage (BS.at "game" m) (BS.at "name" m) (BS.at "session" m) (BS.at "time" m) (BS.at "message" m)) messages
+      modifyResponse . setResponseCode $ 200
+    GameRights True _ True _ _ _ _ _ -> do
+      messages <- a $ action game ltime
+      writeLBS . encode $ fmap (\m -> ChatMessage (BS.at "game" m) (BS.at "name" m) (BS.at "session" m) (BS.at "time" m) (BS.at "message" m)) messages
+      modifyResponse . setResponseCode $ 200
+    GameRights True _ _ _ True _ _ _ -> do
+      messages <- a $ action game ltime 
+      writeLBS . encode $ fmap (\m -> ChatMessage (BS.at "game" m) (BS.at "name" m) (BS.at "session" m) (BS.at "time" m) (BS.at "message" m)) messages
+      modifyResponse . setResponseCode $ 200
+    _ -> do
+       writeLBS . encode $ APIError "Can't read messages!"
+       modifyResponse $ setResponseCode 403
   liftIO $ closeConnection pipe
+
+------------------------------
+-- get rules list
+--   sends nothing
+--   GET /api/games/rules
+--   response rules list or error
+--   200
+--   [
+--     {
+--       "id": {id}
+--       "name": {name},
+--       "description": {text},
+--       "rules": {ship set}
+--     }
+--   ]
+--   404, 403, 400, 500
+--   {message}
+getRules :: FilePath -> SN.Handler b GameService ()
+getRules rulePath = do
+  rules <- liftIO $ (decodeFileStrict rulePath :: IO (Maybe [Rule]))
+  case rules of Just r -> do
+                        writeLBS . encode $ rules
+                Nothing -> do
+                        writeLBS "[]"
+  modifyResponse $ setHeader "Content-Type" "application/json"
+  modifyResponse . setResponseCode $ 200
 
 ----------------------
 -- Game authentication
 fillRights :: Pipe -> Database -> String -> Maybe String -> IO GameRights
 fillRights pipe mongoDb game session = do
   let a action = liftIO $ performAction pipe mongoDb action
-  time <- liftIO $ fmap round getPOSIXTime
+  time <- liftIO $ round <$> getPOSIXTime
   game <- a $ MQ.findOne (MQ.select ["date" =: ["$gte" =: time - gemeTimeout], "game" =: game] "games")
   let turn v = case v of Right (BS.String "owner") -> OWNER
                          Right (BS.String "player") -> PLAYER
@@ -427,11 +526,33 @@ fillRights pipe mongoDb game session = do
                       False -> case isguest of
                             True -> T.unpack $ BS.at "name" $ Prelude.head $ Prelude.filter (\x -> (BS.at "session" x) == sess) $ BS.at "guests" g
                             False -> ""
-          return $ GameRights True isowner isplayer (turn vturn) isguest uname ispublic
+          let rules = BS.at "rules" g
+          return $ GameRights True isowner isplayer (turn vturn) isguest uname ispublic rules
         Nothing -> do
           vturn <- try (BS.look "turn" g) :: IO (Either SomeException BS.Value)
-          return $ GameRights True False False (turn vturn) False "" False
-    Nothing -> return $ GameRights False False False OWNER False "" False
+          return $ GameRights True False False (turn vturn) False "" False "free"
+    Nothing -> return $ GameRights False False False OWNER False "" False "free"
+
+currentRulesId :: String -> FilePath -> IO String
+currentRulesId rules rulePath = do
+  allrules <- liftIO $ (decodeFileStrict rulePath :: IO (Maybe [Rule]))
+  case allrules of Just rs -> do
+                       return $ case (Prelude.length $ Prelude.filter (\(Rule rid _ _ _ _) -> rid == rules) rs) of 
+                            0 -> "free"
+                            _ -> rules
+                   Nothing -> 
+                       return "free"
+
+currentRules :: String -> FilePath -> IO Rule
+currentRules rules rulePath = do
+  allrules <- liftIO $ (decodeFileStrict rulePath :: IO (Maybe [Rule]))
+  case allrules of Just rs -> do
+                       let myrules = Prelude.filter (\(Rule rid _ _ _ _) -> rid == rules) rs
+                       return $ case (Prelude.length $ myrules) of 
+                            0 -> Rule "free" "" "" [] 0
+                            _ -> Prelude.head myrules
+                   Nothing -> 
+                       return $ Rule "free" "" "" [] 0
 
 ----------------------
 -- MongoDB functions
@@ -449,7 +570,7 @@ closeConnection pipe = close pipe
 
 ----------------------
 -- Initialization
-gameServiceInit :: String -> String -> String -> String -> SnapletInit b GameService
-gameServiceInit mongoHost mongoUser mongoPass mongoDb = makeSnaplet "game" "Battleship Service" Nothing $ do
-  addRoutes $ gameRoutes (readHostPort mongoHost) (T.pack mongoUser) (T.pack mongoPass) (T.pack mongoDb)
+gameServiceInit :: String -> String -> String -> String -> String -> SnapletInit b GameService
+gameServiceInit mongoHost mongoUser mongoPass mongoDb rulePath = makeSnaplet "game" "Battleship Service" Nothing $ do
+  addRoutes $ gameRoutes (readHostPort mongoHost) (T.pack mongoUser) (T.pack mongoPass) (T.pack mongoDb) rulePath
   return $ GameService

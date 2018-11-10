@@ -20,22 +20,35 @@ data GameRights = GameRights { grIsExists :: Bool
                              , grIsGuest :: Bool
                              , grMyName :: String
                              , grPublic :: Bool
+                             , grRules :: String
                              }
 
 data PublicGame = PublicGame { pgGameId :: String
                              , pgOwnerName :: String
                              , pgMessage :: String
+                             , pgRules :: String
                              }
 instance ToJSON PublicGame where
-  toJSON (PublicGame g o m) = object [ "game" .= g, "owner" .= o, "message" .= m ]
+  toJSON (PublicGame g o m r) = object [ "game" .= g, "owner" .= o, "message" .= m, "rules" .= r ]
 
 data NewGameUser = NewGameUser { nguName :: String
                                , nguMessage :: String
+                               , nguRules :: String
                                }
 instance FromJSON NewGameUser where
   parseJSON (Object v) =
     NewGameUser <$> v .: "name"
                 <*> v .: "message"
+                <*> v .: "rules"
+  parseJSON _ = mzero
+
+data GameUser = GameUser { guName :: String
+                         , guMessage :: String
+                         }
+instance FromJSON GameUser where
+  parseJSON (Object v) =
+    GameUser <$> v .: "name"
+             <*> v .: "message"
   parseJSON _ = mzero
 
 data Message = Message { msgMessage :: String }
@@ -48,9 +61,13 @@ data APIError = APIError { e :: String }
 instance ToJSON APIError where
   toJSON (APIError e) = toJSON $ e
 
-data NewGame = NewGame { ngGame :: String, ngSession :: String }
+data NewGame = NewGame { ngGame :: String, ngSession :: String, ngRules :: String }
 instance ToJSON NewGame where
-  toJSON (NewGame g s) = object [ "game" .= g, "session" .= s ]
+  toJSON (NewGame g s r) = object [ "game" .= g, "session" .= s, "rules" .= r ]
+
+data SessionInfo = SessionInfo { siGame :: String, siSession :: String }
+instance ToJSON SessionInfo where
+  toJSON (SessionInfo g s) = object [ "game" .= g, "session" .= s ]
 
 instance ToJSON B.ByteString where
   toJSON b = toJSON $ B.unpack b
@@ -61,3 +78,28 @@ instance ToJSON BL.ByteString where
 instance ToJSON BS.Field where
   toJSON v = "field"
 
+data ChatMessage = ChatMessage { cmGameId :: String
+                               , cmName :: String
+                               , cmSession :: String
+                               , cmTime :: Int
+                               , cmMessage :: String
+                               }
+instance ToJSON ChatMessage where
+  toJSON (ChatMessage _ n _ t m) = object [ "name" .= n, "message" .= m, "time" .= t ]
+
+data Rule = Rule { ruleId :: String
+                 , ruleName :: String
+                 , ruleDescription :: String
+                 , ruleShips :: [[Int]]
+                 , ruleOrder :: Int
+                 }
+instance FromJSON Rule where
+  parseJSON (Object v) =
+    Rule <$> v .: "id"
+         <*> v .: "name"
+         <*> v .: "rules"
+         <*> v .: "ships"
+         <*> v .: "order"
+  parseJSON _ = mzero
+instance ToJSON Rule where
+  toJSON (Rule i n r _ o) = object ["id" .= i, "name" .= n, "rules" .= r, "order" .= o ]

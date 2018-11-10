@@ -9,4 +9,5 @@ battleship
     pass = 
     db = "battleship"
   }
+  rules = "rules.json"
 }
