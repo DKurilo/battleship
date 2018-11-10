@@ -16,6 +16,7 @@ import Data.Bson as BS
 import Api.Types
 import Control.Lens
 import Control.Monad.State.Class
+import Data.List as DL
 import Data.Aeson
 import Data.UUID as UUID
 import Data.UUID.V4
@@ -33,6 +34,12 @@ makeLenses ''GameService
 
 gemeTimeout :: Int
 gemeTimeout = 360000
+
+mapWidth :: Int
+mapWidth = 10
+
+mapHeight :: Int
+mapHeight = 10
 ---------------------
 -- Routes
 gameRoutes :: Host -> Username -> Password -> Database -> FilePath -> [(B.ByteString, SN.Handler b GameService ())]
@@ -140,35 +147,74 @@ createGame mongoHost mongoUser mongoPass mongoDb rulePath = do
 sendMap :: Host -> Username -> Password -> Database -> FilePath -> SN.Handler b GameService ()
 sendMap mongoHost mongoUser mongoPass mongoDb rulePath = do
   time <- liftIO $ round <$> getPOSIXTime
-  pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
-  let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse $ setHeader "Content-Type" "application/json"
   pgame <- getParam "gameid"
   session <- getParam "session"
   let game = case pgame of Just g -> B.unpack g
                            Nothing -> ""
   let msess = B.unpack <$> session
-  rights <- liftIO $ fillRights pipe mongoDb game msess
-  case rights of
-    GameRights True True _ NOTREADY _ n _ rid -> do
-      myrules <- liftIO $ currentRules rid rulePath
-      seamap <- fmap (\x -> decode x :: Maybe [[Int]]) $ readRequestBody 4096
-      writeLBS . encode $ APIError "We can save it for Owner 1."
-      modifyResponse $ setResponseCode 200
-    GameRights True True _ CONFIG _ n _ rid -> do
-      myrules <- liftIO $ currentRules rid rulePath
-      seamap <- fmap (\x -> decode x :: Maybe [[Int]]) $ readRequestBody 4096
-      writeLBS . encode $ APIError "We can save it Owner 2."
-      modifyResponse $ setResponseCode 200      
-    GameRights True _ True CONFIG _ n _ rid -> do
-      myrules <- liftIO $ currentRules rid rulePath
-      seamap <- fmap (\x -> decode x :: Maybe [[Int]]) $ readRequestBody 4096
-      writeLBS . encode $ APIError "We can save it for Player."
-      modifyResponse $ setResponseCode 200
-    _ -> do
-       writeLBS . encode $ APIError "Can't send map for this game!"
-       modifyResponse $ setResponseCode 403
-  liftIO $ closeConnection pipe
+  mbseamap <- fmap (\x -> decode x :: Maybe [[Int]]) $ readRequestBody 4096
+  case mbseamap of 
+    Just seamap -> do
+      pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
+      let a action = liftIO $ performAction pipe mongoDb action
+      rights <- liftIO $ fillRights pipe mongoDb game msess
+      let act user sm = [(
+                   [
+                     "game" =: game
+                   ]::Selector,
+                   [
+                     "$set" =: [user =: ["map" =: sm]]
+                   ]::Document,
+                   [ ]::[UpdateOption]
+                )]
+      
+      let chat n = [ "game" =: game
+                   , "name" =: n
+                   , "session" =: msess
+                   , "time" =: time
+                   , "message" =: "Attention! Game is public now!"
+                   ]::Document
+      case rights of
+        GameRights True True _ NOTREADY _ name _ rid -> do
+          myrules <- liftIO $ currentRules rid rulePath
+          case (isGood seamap myrules) of
+            True -> do
+              a $ MQ.updateAll "games" $ act "owner" seamap
+              a $ MQ.insert "chats" $ chat name
+              writeLBS "ok"
+              modifyResponse $ setResponseCode 200
+            _ -> do
+              writeLBS . encode $ APIError "Can't send this map for this game!"
+              modifyResponse $ setResponseCode 406
+        GameRights True True _ CONFIG _ name _ rid -> do
+          myrules <- liftIO $ currentRules rid rulePath
+          case (isGood seamap myrules) of
+            True -> do
+              a $ MQ.updateAll "games" $ act "owner" seamap
+              a $ MQ.insert "chats" $ chat name
+              writeLBS "ok"
+            _ -> do
+              writeLBS . encode $ APIError "Can't send this map for this game!"
+              modifyResponse $ setResponseCode 406
+        GameRights True _ True CONFIG _ name _ rid -> do
+          myrules <- liftIO $ currentRules rid rulePath
+          case (isGood seamap myrules) of
+            True -> do
+              a $ MQ.updateAll "games" $ act "player" seamap
+              a $ MQ.insert "chats" $ chat name
+              writeLBS "ok"
+              modifyResponse $ setResponseCode 200
+            _ -> do
+              writeLBS . encode $ APIError "Can't send this map for this game!"
+              modifyResponse $ setResponseCode 406
+        _ -> do
+           writeLBS . encode $ APIError "Can't send map for this game or game is not exists!"
+           modifyResponse $ setResponseCode 403
+      liftIO $ closeConnection pipe
+    Nothing -> do
+      writeLBS . encode $ APIError "Can't find your map!"
+      modifyResponse $ setResponseCode 404
 
 getStatus :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
 getStatus mongoHost mongoUser mongoPass mongoDb = do
@@ -553,6 +599,80 @@ currentRules rules rulePath = do
                             _ -> Prelude.head myrules
                    Nothing -> 
                        return $ Rule "free" "" "" [] 0
+
+----------------------
+-- Map checks
+-- For each rule:  
+-- rules: text with description  
+-- ships description:   
+-- [(1,4), (2,3), (3,2), (4,1)]  
+-- in send map I need to check rules. To do it:  
+-- get list of counts for separated non empty cells: [0,0,0,1,1,0,1,1,1,0] -> [2,3]  
+-- get the same from transposed map  
+-- get amount of twos, threes and so on. It should be as it is in the rules set.  
+-- for ones amount should be sum of not-ones from another list plus amount of ones  
+-- For test:
+-- Rules: [[1,2],[2,2],[3,1]]
+-- 1 0 1 0 1  1 1 1 0 1
+-- 1 0 1 0 0  0 0 0 0 0
+-- 1 0 0 0 0  1 1 0 1 0
+-- 0 0 1 1 0  0 0 0 1 0
+-- 1 0 0 0 0  1 0 0 0 0
+-- [[1,0,1,0,1],[1,0,1,0,0],[1,0,0,0,0],[0,0,1,1,0],[1,0,0,0,0]]
+-- [[1,1,1,0,1],[0,0,0,0,0],[1,1,0,1,0],[0,0,0,1,0],[1,0,0,0,0]]
+isGood :: [[Int]] -> Rule -> Bool
+isGood sm (Rule rid _ _ ships _) = (isSane sm) && (rid == "free" || (isShipsByRule sm ships) && (noDiagonalShips sm))
+
+isSane :: [[Int]] -> Bool
+isSane m = (mapHeight == DL.length m) && (and [l==mapWidth | l <- [DL.length ra | ra <- m]])
+
+isShipsByRule :: [[Int]] -> [[Int]] -> Bool
+isShipsByRule sm r = isProjectionByRule r (getProjection sm) (getProjection . DL.transpose $ sm)
+
+-------------------------
+-- getProjection [[1,0,1,0,1],[1,0,1,0,0],[1,0,0,0,0],[0,0,1,1,0],[1,0,0,0,0]]
+-- result:[1,1,1,1,1,0,0,1,0,0,0,0,0,0,2,0,1,0,0,0,0]
+-- getProjection [[1,1,1,0,1],[0,0,0,0,0],[1,1,0,1,0],[0,0,0,1,0],[1,0,0,0,0]]
+-- result [3,1,0,0,0,0,0,0,2,1,0,0,0,0,1,0,1,0,0,0,0]
+getProjection :: [[Int]] -> [Int]
+getProjection m = DL.concat $ [DL.foldr (\x (y:ys) -> case x of 
+                                                   0 -> [0] ++ (y:ys)
+                                                   _ -> (y+1:ys)) [0] $ l | l <- m]
+
+----------------------------
+-- isProjectionByRule [[1,2],[2,2],[3,1]] [1,1,1,1,1,0,0,1,0,0,0,0,0,0,2,0,1,0,0,0,0] [3,1,0,0,0,0,0,0,2,1,0,0,0,0,1,0,1,0,0,0,0]
+-- True
+isProjectionByRule :: [[Int]] -> [Int] -> [Int] -> Bool
+isProjectionByRule rs p pt = and [checkRule (DL.head r) (DL.head . DL.tail $ r) | r <- rs]
+     where checkRule d c = (DL.head $ [c * 2 | d==1] ++ [c]) == (((DL.length $ DL.filter (d==) p) 
+                        + (DL.length $ DL.filter (d==) pt))
+                        - (DL.head $ [(sum $ DL.filter (1/=) p) + (sum $ DL.filter (1/=) pt) | d==1] ++ [0]))
+
+------------------------------
+-- noDiagonalShips [[1,0,1,0,1],[1,0,1,0,0],[1,0,0,0,0],[0,0,1,1,0],[1,0,0,0,0]]
+-- True
+-- noDiagonalShips [[1,0,1,0,1],[1,0,1,0,0],[1,0,0,0,0],[0,1,1,0,0],[1,0,0,0,0]]
+-- False
+noDiagonalShips :: [[Int]] -> Bool
+noDiagonalShips sm = not $ isIntersected sm ((shiftUp [0]) . (shiftLeft 0) $ sm) 
+                        && isIntersected sm ((shiftUp [0]) . (shiftRight 0) $ sm)
+                        && isIntersected sm ((shiftDown [0]) . (shiftLeft 0) $ sm)
+                        && isIntersected sm ((shiftDown [0]) . (shiftRight 0) $ sm)
+
+shiftUp :: a -> [a] -> [a]
+shiftUp z xs = DL.tail xs ++ [z]
+
+shiftDown :: a -> [a] -> [a]
+shiftDown z xs = [z] ++ DL.take (-1+DL.length xs) xs
+
+shiftLeft :: a -> [[a]] -> [[a]]
+shiftLeft z xss = [shiftUp z xs | xs <- xss]
+
+shiftRight :: a -> [[a]] -> [[a]]
+shiftRight z xss = [shiftDown z xs | xs <- xss]
+
+isIntersected :: [[Int]] -> [[Int]] -> Bool
+isIntersected m1 m2 = or . DL.concat $ [DL.zipWith (\a b -> (a * b) > 0) x y | (x, y) <- DL.zip m1 m2]
 
 ----------------------
 -- MongoDB functions

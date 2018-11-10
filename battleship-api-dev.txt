@@ -100,13 +100,6 @@ read messages
   ]
   404, 500
   {message}
-
-
-
-
-
-
-
 send map
   post session id (owner and player can send map), json with map. Only empty or ship on map
   POST /api/games/{gameid}/{session}/setmap
@@ -116,6 +109,15 @@ send map
   "ok"
   406, 500
   {message}
+
+
+
+
+
+
+
+
+
 get game status
   send game id and session
   GET /api/games/{gameid}/{session}/
@@ -252,7 +254,7 @@ in send map I need to check rules. To do it:
 get list of counts for separated non empty cells: [0,0,0,1,1,0,1,1,1,0] -> [2,3]  
 get the same from transposed map  
 get amount of twos, threes and so on. It should be as it is in the rules set.  
-for ones amount should be sum of not-ones from another list plus amount of ones  
+for ones amount should be sum of length of not-ones from another list plus amount of ones multiple 2 
 
 
 
