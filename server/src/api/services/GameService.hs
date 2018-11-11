@@ -122,7 +122,7 @@ createGame mongoHost mongoUser mongoPass mongoDb rulePath = do
                               "date" =: time,
                               "message" =: "",
                               "owner" =: ["name" =: name, "message" =: message, "session" =: sessionId],
-                              "turn" =: "notready",
+                              "turn" =: ["notready"],
                               "public" =: False,
                               "rules" =: crules
                             ]
@@ -130,7 +130,7 @@ createGame mongoHost mongoUser mongoPass mongoDb rulePath = do
                  writeLBS $ encode $ NewGame gameId sessionId crules
                  modifyResponse $ setResponseCode 201
                Nothing -> do
-                 writeLBS . encode $ APIError "Name and message can't be empty!"
+                 writeLBS . encode $ APIError "Name message and rules can't be empty!"
                  modifyResponse $ setResponseCode 400
   liftIO $ closeConnection pipe
 
@@ -159,55 +159,51 @@ sendMap mongoHost mongoUser mongoPass mongoDb rulePath = do
       pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
       let a action = liftIO $ performAction pipe mongoDb action
       rights <- liftIO $ fillRights pipe mongoDb game msess
-      let act user sm = [(
+      let act user sm t = [(
                    [
                      "game" =: game
                    ]::Selector,
                    [
-                     "$set" =: [user =: ["map" =: sm]]
+                     "$set" =: [user =: ["map" =: sm]],
+                     "$push" =: ["turn" =: t]
                    ]::Document,
                    [ ]::[UpdateOption]
                 )]
       
-      let chat n = [ "game" =: game
+      let chat n m= [ "game" =: game
                    , "name" =: n
                    , "session" =: msess
                    , "time" =: time
-                   , "message" =: "Attention! Game is public now!"
+                   , "message" =: m
                    ]::Document
+      let doit n u m t r = do
+          myrules <- liftIO $ currentRules r rulePath
+          case (isGood seamap myrules) of
+            True -> do
+              a $ MQ.updateAll "games" $ act u seamap t
+              a $ MQ.insert "chats" $ chat n m
+              writeLBS "ok"
+              modifyResponse $ setResponseCode 200
+            _ -> do
+              writeLBS . encode $ APIError "Can't send this map for this game!"
+              modifyResponse $ setResponseCode 406
       case rights of
         GameRights True True _ NOTREADY _ name _ rid -> do
-          myrules <- liftIO $ currentRules rid rulePath
-          case (isGood seamap myrules) of
-            True -> do
-              a $ MQ.updateAll "games" $ act "owner" seamap
-              a $ MQ.insert "chats" $ chat name
-              writeLBS "ok"
-              modifyResponse $ setResponseCode 200
-            _ -> do
-              writeLBS . encode $ APIError "Can't send this map for this game!"
-              modifyResponse $ setResponseCode 406
+          doit name "owner" "I've sent map." "owner_map" rid
+        GameRights True True _ NOTREADY_WITH_MAP _ name _ rid -> do
+          doit name "owner" "I've sent new map." "owner_map" rid
         GameRights True True _ CONFIG _ name _ rid -> do
-          myrules <- liftIO $ currentRules rid rulePath
-          case (isGood seamap myrules) of
-            True -> do
-              a $ MQ.updateAll "games" $ act "owner" seamap
-              a $ MQ.insert "chats" $ chat name
-              writeLBS "ok"
-            _ -> do
-              writeLBS . encode $ APIError "Can't send this map for this game!"
-              modifyResponse $ setResponseCode 406
+          doit name "owner" "I've sent map. Waiting for you!" "owner_map" rid
+        GameRights True True _ CONFIG_WAIT_OWNER _ name _ rid -> do
+          doit name "owner" "I've sent map. Let's do this!" "owner_map" rid
+        GameRights True True _ CONFIG_WAIT_PLAYER _ name _ rid -> do
+          doit name "owner" "I've sent new map. Waiting for you!" "owner_map" rid
         GameRights True _ True CONFIG _ name _ rid -> do
-          myrules <- liftIO $ currentRules rid rulePath
-          case (isGood seamap myrules) of
-            True -> do
-              a $ MQ.updateAll "games" $ act "player" seamap
-              a $ MQ.insert "chats" $ chat name
-              writeLBS "ok"
-              modifyResponse $ setResponseCode 200
-            _ -> do
-              writeLBS . encode $ APIError "Can't send this map for this game!"
-              modifyResponse $ setResponseCode 406
+          doit name "player" "I've sent map. Waiting for you!" "player_map" rid
+        GameRights True _ True CONFIG_WAIT_OWNER _ name _ rid -> do
+          doit name "player" "I've sent new map. Waiting for you!" "player_map" rid
+        GameRights True _ True CONFIG_WAIT_PLAYER _ name _ rid -> do
+          doit name "player" "I've sent map. Let's do this!" "player_map" rid
         _ -> do
            writeLBS . encode $ APIError "Can't send map for this game or game is not exists!"
            modifyResponse $ setResponseCode 403
@@ -258,8 +254,7 @@ setPublic mongoHost mongoUser mongoPass mongoDb = do
                                        Nothing -> ""
               let msess = (B.unpack <$> session)
               rights <- liftIO $ fillRights pipe mongoDb game msess
-              case rights of
-                GameRights True True _ NOTREADY _ n False _ -> do
+              let doit n = do
                   let act = [(
                                [
                                  "game" =: game
@@ -279,6 +274,11 @@ setPublic mongoHost mongoUser mongoPass mongoDb = do
                   a $ MQ.insert "chats" chat
                   writeLBS "ok"
                   modifyResponse . setResponseCode $ 200
+              case rights of
+                GameRights True True _ NOTREADY _ name False _ -> do
+                  doit name
+                GameRights True True _ NOTREADY_WITH_MAP _ name False _ -> do
+                  doit name
                 _ -> do
                   writeLBS . encode $ APIError "Can't make this game public!"
                   modifyResponse $ setResponseCode 400
@@ -316,15 +316,15 @@ connectGamePlayer mongoHost mongoUser mongoPass mongoDb = do
               let game = case pgame of Just g -> B.unpack g
                                        Nothing -> ""
               rights <- liftIO $ fillRights pipe mongoDb game Nothing
-              case rights of
-                GameRights True False False NOTREADY _ _ _ _ -> do
+              let doit = do
                   sessionId <- liftIO $ UUID.toString <$> nextRandom
                   let act = [(
                                [
                                  "game" =: game
                                ]::Selector,
                                [
-                                 "$set" =: ["player" =: ["name" =: name, "message" =: message, "session" =: sessionId], "turn" =: "config"]
+                                 "$set" =: ["player" =: ["name" =: name, "message" =: message, "session" =: sessionId]],
+                                 "$push" =: ["turn" =: "player_join"]
                                ]::Document,
                                [ ]::[UpdateOption]
                             )]
@@ -338,6 +338,11 @@ connectGamePlayer mongoHost mongoUser mongoPass mongoDb = do
                   a $ MQ.insert "chats" chat
                   writeLBS $ encode $ SessionInfo game sessionId
                   modifyResponse . setResponseCode $ 200
+              case rights of
+                GameRights True False False NOTREADY _ _ _ _ -> do
+                  doit
+                GameRights True False False NOTREADY_WITH_MAP _ _ _ _ -> do
+                  doit
                 _ -> do
                   writeLBS . encode $ APIError "Can't connect as player!"
                   modifyResponse $ setResponseCode 400
@@ -389,14 +394,66 @@ connectGameGuest mongoHost mongoUser mongoPass mongoDb = do
               modifyResponse $ setResponseCode 400
   liftIO $ closeConnection pipe
 
+------------------------------
+-- shoot
+--   post game id, session (only owner and player can shoot and only in ther turn) and coords
+--   POST /api/games/{gameid}/{session}/shoot
+--   {
+--     "x": {x},
+--     "y": {y},
+--   }
+--   response result (hit|miss|sink|win) or error
+--   202
+--   {hit|miss|sink|win}
+--   404, 403, 400, 500
+--   {message}
 shoot :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
 shoot mongoHost mongoUser mongoPass mongoDb = do
+  time <- liftIO $ round <$> getPOSIXTime
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse $ setHeader "Content-Type" "application/json"
-  modifyResponse . setResponseCode $ 202
+  pgame <- getParam "gameid"
+  session <- getParam "session"
+  mbshot <- fmap (\x -> decode x :: Maybe Shot) $ readRequestBody 4096
+  case mbshot of 
+        -- Just (Shot x y) -> do
+        --       let game = case pgame of Just g -> B.unpack g
+        --                                Nothing -> ""
+        --       let msess = (B.unpack <$> session)
+        --       rights <- liftIO $ fillRights pipe mongoDb game msess
+        --       let doit n = do
+        --           let act = [(
+        --                        [
+        --                          "game" =: game
+        --                        ]::Selector,
+        --                        [
+        --                          "$set" =: ["public" =: True, "message" =: msg]
+        --                        ]::Document,
+        --                        [ ]::[UpdateOption]
+        --                     )]
+        --           a $ MQ.updateAll "games" act
+        --           let chat = [ "game" =: game
+        --                      , "name" =: n
+        --                      , "session" =: msess
+        --                      , "time" =: time
+        --                      , "message" =: "Attention! Game is public now!"
+        --                      ]::Document
+        --           a $ MQ.insert "chats" chat
+        --           writeLBS "ok"
+        --           modifyResponse . setResponseCode $ 200
+        --       case rights of
+        --         GameRights True True _ NOTREADY _ name False _ -> do
+        --           doit name
+        --         GameRights True True _ NOTREADY_WITH_MAP _ name False _ -> do
+        --           doit name
+        --         _ -> do
+        --           writeLBS . encode $ APIError "Can't make this game public!"
+        --           modifyResponse $ setResponseCode 400
+        _ -> do
+              writeLBS . encode $ APIError "Can't find coordinates!"
+              modifyResponse $ setResponseCode 400
   liftIO $ closeConnection pipe
-
 
 --------------------------
 -- write message
@@ -534,10 +591,8 @@ fillRights pipe mongoDb game session = do
   let a action = liftIO $ performAction pipe mongoDb action
   time <- liftIO $ round <$> getPOSIXTime
   game <- a $ MQ.findOne (MQ.select ["date" =: ["$gte" =: time - gemeTimeout], "game" =: game] "games")
-  let turn v = case v of Right (BS.String "owner") -> OWNER
-                         Right (BS.String "player") -> PLAYER
-                         Right (BS.String "finished") -> FINISHED
-                         Right (BS.String "config") -> CONFIG
+  let turn v = case v of Right (BS.Array l) -> getTurn $ DL.map (\v -> case v of (BS.String s) -> T.unpack s 
+                                                                                 _ -> "noop") l
                          _ -> NOTREADY
   case game of 
     Just g -> 
@@ -578,6 +633,23 @@ fillRights pipe mongoDb game session = do
           vturn <- try (BS.look "turn" g) :: IO (Either SomeException BS.Value)
           return $ GameRights True False False (turn vturn) False "" False "free"
     Nothing -> return $ GameRights False False False OWNER False "" False "free"
+
+getTurn :: [String] -> Turn
+getTurn = getTurn' NOTREADY
+
+getTurn' :: Turn -> [String] -> Turn
+getTurn' t [] = t
+getTurn' t (x:xs) = getTurn' (changeTurn t x) xs
+
+changeTurn :: Turn -> String -> Turn
+changeTurn t s = case t of
+  NOTREADY -> DL.head $ [CONFIG | s == "player_join"] ++ [NOTREADY_WITH_MAP | s == "owner_map"] ++ [t]
+  CONFIG -> DL.head $ [CONFIG_WAIT_PLAYER | s == "owner_map"] ++ [CONFIG_WAIT_OWNER | s == "player_map"] ++ [t]
+  NOTREADY_WITH_MAP -> DL.head $ [CONFIG_WAIT_PLAYER | s == "player_join"] ++ [t]
+  CONFIG_WAIT_PLAYER -> DL.head $ [OWNER | s == "player_map"] ++ [t]
+  CONFIG_WAIT_OWNER -> DL.head $ [OWNER | s == "owner_map"] ++ [t]
+  OWNER -> DL.head $ [PLAYER | s == "player"] ++ [OWNER_WIN | s == "finished"] ++ [t]
+  PLAYER -> DL.head $ [OWNER | s == "owner"] ++ [PLAYER_WIN | s == "finished"] ++ [t]
 
 currentRulesId :: String -> FilePath -> IO String
 currentRulesId rules rulePath = do
@@ -673,6 +745,25 @@ shiftRight z xss = [shiftDown z xs | xs <- xss]
 
 isIntersected :: [[Int]] -> [[Int]] -> Bool
 isIntersected m1 m2 = or . DL.concat $ [DL.zipWith (\a b -> (a * b) > 0) x y | (x, y) <- DL.zip m1 m2]
+
+---------------------------------
+-- check shot
+isShotSane :: [[Int]] -> Shot -> Bool
+isShotSane sm (Shot x y) = DL.length sm > y && ((DL.drop x) . (DL.head . DL.drop y) $ sm) /= []
+
+getCell :: [[Int]] -> Shot -> Int
+getCell sm (Shot x y) = (DL.head . DL.drop x) . (DL.head . DL.drop y) $ sm
+
+isSink :: [[Int]] -> Shot -> Bool
+isSink m s = True
+
+isWin :: [[Int]] -> Bool
+isWin t = True
+
+getBefore :: Ord a => a -> [a] -> [a]
+getBefore t (x:[]) = [x | x/=t]
+getBefore t (x:xs) | x/=t = [x] ++ getBefore t xs
+                   | otherwise = []
 
 ----------------------
 -- MongoDB functions

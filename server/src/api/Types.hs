@@ -11,7 +11,7 @@ import Data.Bson as BS
 import Data.Aeson
 import Control.Monad
 
-data Turn = OWNER|PLAYER|NOTREADY|CONFIG|FINISHED
+data Turn = OWNER|PLAYER|NOTREADY|NOTREADY_WITH_MAP|CONFIG|CONFIG_WAIT_OWNER|CONFIG_WAIT_PLAYER|PLAYER_WIN|OWNER_WIN
 
 data GameRights = GameRights { grIsExists :: Bool
                              , grIsOwner :: Bool
@@ -103,3 +103,10 @@ instance FromJSON Rule where
   parseJSON _ = mzero
 instance ToJSON Rule where
   toJSON (Rule i n r _ o) = object ["id" .= i, "name" .= n, "rules" .= r, "order" .= o ]
+
+data Shot  = Shot { shotX :: Int, shotY :: Int }
+instance FromJSON Shot where
+  parseJSON (Object v) =
+    Shot <$> v .: "x"
+         <*> v .: "y"
+  parseJSON _ = mzero
