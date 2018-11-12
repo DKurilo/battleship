@@ -14,23 +14,23 @@ import Database.MongoDB.Query as MQ
 import Database.MongoDB.Connection
 import Data.Bson as BS
 import Api.Types
-import Control.Lens
+import qualified Control.Lens as CL
 import Control.Monad.State.Class
 import Data.List as DL
-import Data.Aeson
+import Data.Aeson as DA
 import Data.UUID as UUID
 import Data.UUID.V4
 import Snap.Core
 import Snap.Snaplet as SN
 import qualified Data.ByteString.Char8 as B
-import Data.Text as T
-import Data.Text.IO as TIO
+import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import Data.Text.Encoding
 import Data.Time.Clock.POSIX
 
 data GameService = GameService { }
 
-makeLenses ''GameService
+CL.makeLenses ''GameService
 
 gemeTimeout :: Int
 gemeTimeout = 360000
@@ -164,7 +164,7 @@ sendMap mongoHost mongoUser mongoPass mongoDb rulePath = do
                      "game" =: game
                    ]::Selector,
                    [
-                     "$set" =: [user =: ["map" =: sm]],
+                     "$set" =: [(T.pack $ user ++ ".map") =: sm],
                      "$push" =: ["turn" =: t]
                    ]::Document,
                    [ ]::[UpdateOption]
@@ -212,20 +212,123 @@ sendMap mongoHost mongoUser mongoPass mongoDb rulePath = do
       writeLBS . encode $ APIError "Can't find your map!"
       modifyResponse $ setResponseCode 404
 
+-----------------------
+-- get game status
+--   send game id and session
+--   GET /api/games/{gameid}/{session}/
+--   response status (map contain only unknown or hit if game is not finished and everything if finished) or error
+--   200
+--   {
+--     "game": {gameid},
+--     "message": {message},
+--     "you": {owner|player|guest},
+--     "turn": {owner|player|notready},
+--     "owner": {
+--       "name": {name},
+--       "message": {message},
+--       "map": [[0,0,0,1,1,0,0...],[...],[...],...]
+--     },
+--     "player": {
+--       "name": {name},
+--       "message": {message},
+--       "map": [[0,0,0,1,1,0,0...],[...],[...],...]
+--     },
+--     "guests": [
+--       {
+--         "name": {name},
+--         "message": {message}
+--       }
+--     ]
+--   }
+--   404, 500
+--   {message}
 getStatus :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
 getStatus mongoHost mongoUser mongoPass mongoDb = do
+  time <- liftIO $ round <$> getPOSIXTime
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse $ setHeader "Content-Type" "application/json"
-  modifyResponse . setResponseCode $ 200
+  pgame <- getParam "gameid"
+  session <- getParam "session"
+  let game = case pgame of Just g -> B.unpack g
+                           Nothing -> ""
+  let msess = (B.unpack <$> session)
+  rights <- liftIO $ fillRights pipe mongoDb game msess
+  let getGStatus you turn rules gameinfo = do
+      let owner = BS.at "owner" gameinfo
+      let ownername = BS.at "name" owner
+      let ownermessage = BS.at "message" owner
+      mbownermap <- try (BS.look "map" owner) :: IO (Either SomeException BS.Value)
+      let ownermap = case mbownermap of 
+            Right (BS.Array m) -> [(case mbl of
+              BS.Array l -> [(case mbc of BS.Float c -> head $ [c | c > 1 || you == "owner"] ++ [0] 
+                                          _ -> 0) | mbc <- l]
+              _ -> []) | mbl <- m]
+            _ -> []
+      mbplayer <- try (BS.look "player" gameinfo) :: IO (Either SomeException BS.Value)
+      playerobj <- liftIO $ case mbplayer of 
+            Right (BS.Doc player) -> do
+              let playername = BS.at "name" player
+              mbplayermap <- try (BS.look "map" player) :: IO (Either SomeException BS.Value)
+              let playermap = case mbplayermap of 
+                    Right (BS.Array m) -> [(case mbl of
+                      BS.Array l -> [(case mbc of BS.Float c -> head $ [c | c > 1 || you == "player"] ++ [0] 
+                                                  _ -> 0) | mbc <- l]
+                      _ -> []) | mbl <- m]
+                    _ -> []
+              let playermessage = BS.at "message" player
+              return $ object [ "name" .= T.pack playername
+                              , "message" .= T.pack playermessage
+                              , "map" .= playermap
+                              ]
+            _ -> return $ object []
+
+      mbguests <- try (BS.look "guests" gameinfo) :: IO (Either SomeException BS.Value)
+      let guestsobj = case mbguests of 
+            Right (BS.Array guests) -> [(case mbguest of 
+                                           (BS.Doc guest) -> object [ "name" .= T.pack (BS.at "name" guest)
+                                                                    , "message" .= T.pack (BS.at "message" guest)
+                                                                    ]
+                                           _ -> object []) | mbguest <- guests]
+            _ -> []
+      let status = object [ "game" .= game
+                          , "message" .= T.pack (BS.at "message" gameinfo)
+                          , "you" .= you
+                          , "rules" .= rules
+                          , "turn" .= turn
+                          , "owner" .= object [ "name" .= T.pack ownername
+                                              , "message" .= T.pack ownermessage
+                                              , "map" .= ownermap
+                                              ]
+                          , "player" .= playerobj
+                          , "guests" .= guestsobj
+                          ]
+      return status
+  case rights of
+    GameRights True True False turn False _ _ rules (Just gameinfo) -> do
+      status <- liftIO $ getGStatus "owner" turn rules gameinfo
+      writeLBS . encode $ status
+      modifyResponse . setResponseCode $ 200
+    GameRights True False True turn False _ _ rules (Just gameinfo) -> do
+      status <- liftIO $ getGStatus "player" turn rules gameinfo
+      writeLBS . encode $ status
+      modifyResponse . setResponseCode $ 200
+    GameRights True False False turn True _ _ rules (Just gameinfo) -> do
+      status <- liftIO $ getGStatus "guest" turn rules gameinfo
+      writeLBS . encode $ status
+      modifyResponse . setResponseCode $ 200
+    _ -> do
+      writeLBS . encode $ APIError "Can't find the game or you shouldn't see this game's status!"
+      modifyResponse $ setResponseCode 400
   liftIO $ closeConnection pipe
 
 inviteBot :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
 inviteBot mongoHost mongoUser mongoPass mongoDb = do
-  pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
-  let a action = liftIO $ performAction pipe mongoDb action
+  -- pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
+  -- let a action = liftIO $ performAction pipe mongoDb action
+  writeLBS . encode $ APIError "It's not implemented yet!"
   modifyResponse . setResponseCode $ 501
-  liftIO $ closeConnection pipe
+  --liftIO $ closeConnection pipe
 
 ----------------------------
 -- invite stranger
@@ -428,7 +531,7 @@ shoot mongoHost mongoUser mongoPass mongoDb = do
                                  "game" =: game
                                ]::Selector,
                                [
-                                 "$set" =: [enemy =: [(T.pack . DL.concat $ ["map.", show y,".",show x]) =: cell]],
+                                 "$set" =: [(T.pack . concat $ [enemy, ".map.", show y,".",show x]) =: cell],
                                  "$push" =: ["turn" =: turn]
                                ]::Document,
                                [ ]::[UpdateOption]
@@ -438,7 +541,7 @@ shoot mongoHost mongoUser mongoPass mongoDb = do
                              , "name" =: n
                              , "session" =: msess
                              , "time" =: time
-                             , "message" =: (T.pack . DL.concat $ [shotLabel x y, " - ", response])
+                             , "message" =: (T.pack . concat $ [shotLabel x y, " - ", response])
                              ]::Document
                   a $ MQ.insert "chats" chat
                   writeLBS . encode $ response
@@ -491,7 +594,7 @@ shoot mongoHost mongoUser mongoPass mongoDb = do
   liftIO $ closeConnection pipe
 
 shotLabel:: Int -> Int -> String
-shotLabel x y = DL.concat [DL.take 1 . DL.drop x $ "ABCDEFGHIJKLMNOPQRSTUVWXYZ", show . (+1) $ y]
+shotLabel x y = concat [take 1 . drop x $ "ABCDEFGHIJKLMNOPQRSTUVWXYZ", show . (+1) $ y]
 --------------------------
 -- write message
 --   post game id, session, message
@@ -573,8 +676,8 @@ readMessages mongoHost mongoUser mongoPass mongoDb = do
   let game = case pgame of Just g -> B.unpack g
                            Nothing -> ""
   let msess = B.unpack <$> session
-  let ltime = (Prelude.read (case pltime of Just t -> B.unpack t
-                                            Nothing -> "0")) :: Integer
+  let ltime = (read (case pltime of Just t -> B.unpack t
+                                    Nothing -> "0")) :: Integer
   let action g t = rest =<< MQ.find (MQ.select ["time" =: ["$gt" =: t], "game" =: g] "chats")
   rights <- liftIO $ fillRights pipe mongoDb game msess
   case rights of
@@ -615,7 +718,7 @@ getRules :: FilePath -> SN.Handler b GameService ()
 getRules rulePath = do
   rules <- liftIO $ (decodeFileStrict rulePath :: IO (Maybe [Rule]))
   case rules of Just r -> do
-                        writeLBS . encode $ rules
+                        writeLBS . encode $ r
                 Nothing -> do
                         writeLBS "[]"
   modifyResponse $ setHeader "Content-Type" "application/json"
@@ -628,8 +731,8 @@ fillRights pipe mongoDb game session = do
   let a action = liftIO $ performAction pipe mongoDb action
   time <- liftIO $ round <$> getPOSIXTime
   game <- a $ MQ.findOne (MQ.select ["date" =: ["$gte" =: time - gemeTimeout], "game" =: game] "games")
-  let turn v = case v of Right (BS.Array l) -> getTurn $ DL.map (\v -> case v of (BS.String s) -> T.unpack s 
-                                                                                 _ -> "noop") l
+  let turn v = case v of Right (BS.Array l) -> getTurn $ map (\v -> case v of (BS.String s) -> T.unpack s 
+                                                                              _ -> "noop") l
                          _ -> NOTREADY
   case game of 
     Just g -> 
@@ -653,16 +756,16 @@ fillRights pipe mongoDb game session = do
                                        _ -> False
           guests <- try (BS.look "guests" g) :: IO (Either SomeException BS.Value)
           let isguest = case guests of 
-                Right (BS.Array a) -> and $ fmap (\g -> 
-                              (case g of (BS.Doc dg) -> (T.unpack (BS.at "session" dg)) == sess
-                                         _ -> False)) a
+                Right (BS.Array ga) -> and $ fmap (\gt -> 
+                              (case gt of (BS.Doc dg) -> (T.unpack (BS.at "session" dg)) == sess
+                                          _ -> False)) ga
                 _ -> False
           let uname = case isowner of
                 True -> T.unpack $ BS.at "name" $ BS.at "owner" g
                 False -> case isplayer of
                       True -> T.unpack $ BS.at "name" $ BS.at "player" g
                       False -> case isguest of
-                            True -> T.unpack $ BS.at "name" $ Prelude.head $ Prelude.filter (\x -> (BS.at "session" x) == sess) $ BS.at "guests" g
+                            True -> T.unpack $ BS.at "name" $ head $ filter (\x -> (BS.at "session" x) == sess) $ BS.at "guests" g
                             False -> ""
           let rules = BS.at "rules" g
           return $ GameRights True isowner isplayer (turn vturn) isguest uname ispublic rules game
@@ -680,19 +783,20 @@ getTurn' t (x:xs) = getTurn' (changeTurn t x) xs
 
 changeTurn :: Turn -> String -> Turn
 changeTurn t s = case t of
-  NOTREADY -> DL.head $ [CONFIG | s == "player_join"] ++ [NOTREADY_WITH_MAP | s == "owner_map"] ++ [t]
-  CONFIG -> DL.head $ [CONFIG_WAIT_PLAYER | s == "owner_map"] ++ [CONFIG_WAIT_OWNER | s == "player_map"] ++ [t]
-  NOTREADY_WITH_MAP -> DL.head $ [CONFIG_WAIT_PLAYER | s == "player_join"] ++ [t]
-  CONFIG_WAIT_PLAYER -> DL.head $ [OWNER | s == "player_map"] ++ [t]
-  CONFIG_WAIT_OWNER -> DL.head $ [OWNER | s == "owner_map"] ++ [t]
-  OWNER -> DL.head $ [PLAYER | s == "player"] ++ [OWNER_WIN | s == "finished"] ++ [t]
-  PLAYER -> DL.head $ [OWNER | s == "owner"] ++ [PLAYER_WIN | s == "finished"] ++ [t]
+  NOTREADY -> head $ [CONFIG | s == "player_join"] ++ [NOTREADY_WITH_MAP | s == "owner_map"] ++ [t]
+  CONFIG -> head $ [CONFIG_WAIT_PLAYER | s == "owner_map"] ++ [CONFIG_WAIT_OWNER | s == "player_map"] ++ [t]
+  NOTREADY_WITH_MAP -> head $ [CONFIG_WAIT_PLAYER | s == "player_join"] ++ [t]
+  CONFIG_WAIT_PLAYER -> head $ [OWNER | s == "player_map"] ++ [t]
+  CONFIG_WAIT_OWNER -> head $ [OWNER | s == "owner_map"] ++ [t]
+  OWNER -> head $ [PLAYER | s == "player"] ++ [OWNER_WIN | s == "finished"] ++ [t]
+  PLAYER -> head $ [OWNER | s == "owner"] ++ [PLAYER_WIN | s == "finished"] ++ [t]
+  _ -> NOTREADY
 
 currentRulesId :: String -> FilePath -> IO String
 currentRulesId rules rulePath = do
   allrules <- liftIO $ (decodeFileStrict rulePath :: IO (Maybe [Rule]))
   case allrules of Just rs -> do
-                       return $ case (Prelude.length $ Prelude.filter (\(Rule rid _ _ _ _) -> rid == rules) rs) of 
+                       return $ case (length $ filter (\(Rule rid _ _ _ _) -> rid == rules) rs) of 
                             0 -> "free"
                             _ -> rules
                    Nothing -> 
@@ -702,10 +806,10 @@ currentRules :: String -> FilePath -> IO Rule
 currentRules rules rulePath = do
   allrules <- liftIO $ (decodeFileStrict rulePath :: IO (Maybe [Rule]))
   case allrules of Just rs -> do
-                       let myrules = Prelude.filter (\(Rule rid _ _ _ _) -> rid == rules) rs
-                       return $ case (Prelude.length $ myrules) of 
+                       let myrules = filter (\(Rule rid _ _ _ _) -> rid == rules) rs
+                       return $ case (length $ myrules) of 
                             0 -> Rule "free" "" "" [] 0
-                            _ -> Prelude.head myrules
+                            _ -> head myrules
                    Nothing -> 
                        return $ Rule "free" "" "" [] 0
 
@@ -733,10 +837,10 @@ isGood :: [[Int]] -> Rule -> Bool
 isGood sm (Rule rid _ _ ships _) = (isSane sm) && (rid == "free" || (isShipsByRule sm ships) && (noDiagonalShips sm))
 
 isSane :: [[Int]] -> Bool
-isSane m = (mapHeight == DL.length m) && (and [l==mapWidth | l <- [DL.length ra | ra <- m]])
+isSane m = (mapHeight == length m) && (and [l==mapWidth | l <- [length ra | ra <- m]])
 
 isShipsByRule :: [[Int]] -> [[Int]] -> Bool
-isShipsByRule sm r = isProjectionByRule r (getProjection sm) (getProjection . DL.transpose $ sm)
+isShipsByRule sm r = isProjectionByRule r (getProjection sm) (getProjection . transpose $ sm)
 
 -------------------------
 -- getProjection [[1,0,1,0,1],[1,0,1,0,0],[1,0,0,0,0],[0,0,1,1,0],[1,0,0,0,0]]
@@ -744,7 +848,7 @@ isShipsByRule sm r = isProjectionByRule r (getProjection sm) (getProjection . DL
 -- getProjection [[1,1,1,0,1],[0,0,0,0,0],[1,1,0,1,0],[0,0,0,1,0],[1,0,0,0,0]]
 -- result [3,1,0,0,0,0,0,0,2,1,0,0,0,0,1,0,1,0,0,0,0]
 getProjection :: [[Int]] -> [Int]
-getProjection m = DL.concat $ [DL.foldr (\x (y:ys) -> case x of 
+getProjection m = concat $ [foldr (\x (y:ys) -> case x of 
                                                    0 -> [0] ++ (y:ys)
                                                    _ -> (y+1:ys)) [0] $ l | l <- m]
 
@@ -752,10 +856,10 @@ getProjection m = DL.concat $ [DL.foldr (\x (y:ys) -> case x of
 -- isProjectionByRule [[1,2],[2,2],[3,1]] [1,1,1,1,1,0,0,1,0,0,0,0,0,0,2,0,1,0,0,0,0] [3,1,0,0,0,0,0,0,2,1,0,0,0,0,1,0,1,0,0,0,0]
 -- True
 isProjectionByRule :: [[Int]] -> [Int] -> [Int] -> Bool
-isProjectionByRule rs p pt = and [checkRule (DL.head r) (DL.head . DL.tail $ r) | r <- rs]
-     where checkRule d c = (DL.head $ [c * 2 | d==1] ++ [c]) == (((DL.length $ DL.filter (d==) p) 
-                        + (DL.length $ DL.filter (d==) pt))
-                        - (DL.head $ [(sum $ DL.filter (1/=) p) + (sum $ DL.filter (1/=) pt) | d==1] ++ [0]))
+isProjectionByRule rs p pt = and [checkRule (head r) (head . tail $ r) | r <- rs]
+     where checkRule d c = (head $ [c * 2 | d==1] ++ [c]) == (((length $ filter (d==) p) 
+                        + (length $ filter (d==) pt))
+                        - (head $ [(sum $ filter (1/=) p) + (sum $ filter (1/=) pt) | d==1] ++ [0]))
 
 ------------------------------
 -- noDiagonalShips [[1,0,1,0,1],[1,0,1,0,0],[1,0,0,0,0],[0,0,1,1,0],[1,0,0,0,0]]
@@ -769,10 +873,10 @@ noDiagonalShips sm = not $ isIntersected sm ((shiftUp [0]) . (shiftLeft 0) $ sm)
                         && isIntersected sm ((shiftDown [0]) . (shiftRight 0) $ sm)
 
 shiftUp :: a -> [a] -> [a]
-shiftUp z xs = DL.tail xs ++ [z]
+shiftUp z xs = tail xs ++ [z]
 
 shiftDown :: a -> [a] -> [a]
-shiftDown z xs = [z] ++ DL.take (-1+DL.length xs) xs
+shiftDown z xs = [z] ++ take (-1+length xs) xs
 
 shiftLeft :: a -> [[a]] -> [[a]]
 shiftLeft z xss = [shiftUp z xs | xs <- xss]
@@ -781,36 +885,36 @@ shiftRight :: a -> [[a]] -> [[a]]
 shiftRight z xss = [shiftDown z xs | xs <- xss]
 
 isIntersected :: [[Int]] -> [[Int]] -> Bool
-isIntersected m1 m2 = or . DL.concat $ [DL.zipWith (\a b -> (a * b) > 0) x y | (x, y) <- DL.zip m1 m2]
+isIntersected m1 m2 = or . concat $ [zipWith (\a b -> (a * b) > 0) x y | (x, y) <- zip m1 m2]
 
 ---------------------------------
 -- check shot
 isShotSane :: [[Int]] -> Shot -> Bool
-isShotSane sm (Shot x y) = DL.length sm > y && ((DL.drop x) . (DL.head . DL.drop y) $ sm) /= []
+isShotSane sm (Shot x y) = length sm > y && ((drop x) . (head . drop y) $ sm) /= []
 
 getCell :: [[Int]] -> Shot -> Int
-getCell sm (Shot x y) = (DL.head . DL.drop x) . (DL.head . DL.drop y) $ sm
+getCell sm (Shot x y) = (head . drop x) . (head . drop y) $ sm
 
 isSink :: [[Int]] -> Shot -> Bool
-isSink m (Shot x y) = checkLine x (DL.head . (DL.drop y) $ m)
-                      && checkLine y (DL.head . (DL.drop x) $ (DL.transpose m))
+isSink m (Shot x y) = checkLine x (head . (drop y) $ m)
+                      && checkLine y (head . (drop x) $ (transpose m))
 
 checkLine :: Int -> [Int] -> Bool
-checkLine x xs = and $ (checkPartOfLine $ DL.drop (x+1) $ xs) ++ 
-                       (checkPartOfLine $ DL.drop ((DL.length xs) - x) $ (DL.reverse xs))
+checkLine x xs = and $ (checkPartOfLine $ drop (x+1) $ xs) ++ 
+                       (checkPartOfLine $ drop ((length xs) - x) $ (reverse xs))
 
 checkPartOfLine :: [Int] -> [Bool]
 checkPartOfLine [] = [True]
-checkPartOfLine xs = DL.map (3==) $ getWhile (\v -> v==1|| v==3) xs
+checkPartOfLine xs = map (3==) $ getWhile (\v -> v==1|| v==3) xs
 
 getWhile :: Ord a => (a -> Bool) -> [a] -> [a]
-getWhile t [] = []
+getWhile _ [] = []
 getWhile t (x:[]) = [x | t x]
 getWhile t (x:xs) | t x = [x] ++ getWhile t xs
                   | otherwise = []
 
 isWin :: [[Int]] -> Bool
-isWin sm = sum [sum [DL.head $ [0 | c/=1] ++ [1] | c <- l] | l <- sm] == 1
+isWin sm = sum [sum [head $ [0 | c/=1] ++ [1] | c <- l] | l <- sm] == 1
 
 ----------------------
 -- MongoDB functions

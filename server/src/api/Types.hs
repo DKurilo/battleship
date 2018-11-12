@@ -12,6 +12,17 @@ import Data.Aeson
 import Control.Monad
 
 data Turn = OWNER|PLAYER|NOTREADY|NOTREADY_WITH_MAP|CONFIG|CONFIG_WAIT_OWNER|CONFIG_WAIT_PLAYER|PLAYER_WIN|OWNER_WIN
+instance ToJSON Turn where
+  toJSON t = case t of
+    OWNER -> "owner"
+    PLAYER -> "palyer"
+    NOTREADY -> "notready"
+    NOTREADY_WITH_MAP -> "notready"
+    CONFIG -> "notready"
+    CONFIG_WAIT_OWNER -> "notready"
+    CONFIG_WAIT_PLAYER -> "notready"
+    PLAYER_WIN -> "player_win"
+    OWNER_WIN -> "owner_win"
 
 data GameRights = GameRights { grIsExists :: Bool
                              , grIsOwner :: Bool

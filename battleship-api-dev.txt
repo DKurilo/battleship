@@ -121,14 +121,6 @@ shoot
   {hit|miss|sink|win}
   404, 403, 400, 500
   {message}
-
-
-
-
-
-
-
-
 get game status
   send game id and session
   GET /api/games/{gameid}/{session}/
@@ -158,6 +150,11 @@ get game status
   }
   404, 500
   {message}
+
+
+
+
+
 invite a bot (when bot will be ready...)
   post game id and session (only owner can invite a bot)
   POST /api/games/{gameid}/{session}/invitebot
@@ -334,9 +331,16 @@ new(1) - player_join(2) - owner_map(4)    - player_map(6)  - owner(6) - player(7
 
 
 Create game:
-curl -L localhost:9000/api/games/ -XPOST -H "Content-Type: application/json" -d'{"name":"dima","message":"Ha-ha-ha!!!","rules":"starwars"}' -v
+curl -L http://localhost:9000/api/games/ -XPOST -H "Content-Type: application/json" -d'{"name":"dima","message":"Ha-ha-ha!!!","rules":"starwars"}' -v
 Connect as player
-curl -L localhost:9000/api/games/3c0baf16-88e1-428c-8430-5b5dcc84898e/connect/player -XPOST -H "Content-Type: application/json" -d'{"name":"dima","message":"Ha-ha-ha!!!"}' -v
+curl -L http://localhost:9000/api/games/3c0baf16-88e1-428c-8430-5b5dcc84898e/connect/player -XPOST -H "Content-Type: application/json" -d'{"name":"dima","message":"Ha-ha-ha!!!"}' -v
+Connect as guest:
+curl -L http://localhost:9000/api/games/3c0baf16-88e1-428c-8430-5b5dcc84898e/connect/guest -XPOST -H "Content-Type: application/json" -d'{"name":"g1","message":"flkdjfldjflsdk fsdlfjslkjf"}' -v
+Show status:
+curl -L http://localhost:9000/api/games/3c0baf16-88e1-428c-8430-5b5dcc84898e/7e906a03-be82-431c-bbbe-1e602c78aaab -v
+curl -L http://localhost:9000/api/games/3c0baf16-88e1-428c-8430-5b5dcc84898e/1f865540-3672-46d3-95da-f27377622a15 -v
+curl -L http://localhost:9000/api/games/3c0baf16-88e1-428c-8430-5b5dcc84898e/ef3f8bc4-be8b-41fb-8971-7e3030126f50 -v
+
 
 
 
