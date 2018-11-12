@@ -109,7 +109,18 @@ send map
   "ok"
   406, 500
   {message}
-
+shoot
+  post game id, session (only owner and player can shoot and only in ther turn) and coords
+  POST /api/games/{gameid}/{session}/shoot
+  {
+    "x": {x},
+    "y": {y},
+  }
+  response result (hit|miss|sink|win) or error
+  202
+  {hit|miss|sink|win}
+  404, 403, 400, 500
+  {message}
 
 
 
@@ -146,9 +157,7 @@ get game status
     ]
   }
   404, 500
-  {
-    "error": {message}
-  }
+  {message}
 invite a bot (when bot will be ready...)
   post game id and session (only owner can invite a bot)
   POST /api/games/{gameid}/{session}/invitebot
@@ -156,21 +165,7 @@ invite a bot (when bot will be ready...)
   200
   "ok"
   404, 501
-  {
-    "error": {message}
-  }
-shoot
-  post game id, session (only owner and player can shoot and only in ther turn) and coords
-  POST /api/games/{gameid}/{session}/shoot
-  {
-    "x": {x},
-    "y": {y},
-  }
-  response result (hit|miss|sink|win) or error
-  202
-  {hit|miss|sink|win}
-  404, 403, 400, 500
-  {message}
+  "error": {message}
 
 
 
@@ -296,7 +291,9 @@ isProjectionByRule [[1,2],[2,2],[3,1]] [1,1,1,1,1,1,2,1] [3,1,0,2,1,1,1]
 2 3
 
 y from map (head . (drop y) $ map)
-3 0 3 3 0
+l <- 3 0 3 3 0
+and $ map (3==) $ getBefore (\x -> x==2 || x==0) $ drop x l
+3 3
 and [x' == 1 | x` < drop (x + 1)]
 
 x from transpose map (head . (drop y) . transpose $ map)
@@ -343,3 +340,16 @@ curl -L localhost:9000/api/games/3c0baf16-88e1-428c-8430-5b5dcc84898e/connect/pl
 
 
 
+isShotSane
+  getCell
+    0 - MISS
+    1 - 
+      isSink
+        True
+          isWin
+            True - SANK
+            False - WON
+        False - HIT
+    2 - ERR
+    3 - ERR
+ERR

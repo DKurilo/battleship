@@ -188,21 +188,21 @@ sendMap mongoHost mongoUser mongoPass mongoDb rulePath = do
               writeLBS . encode $ APIError "Can't send this map for this game!"
               modifyResponse $ setResponseCode 406
       case rights of
-        GameRights True True _ NOTREADY _ name _ rid -> do
+        GameRights True True _ NOTREADY _ name _ rid _ -> do
           doit name "owner" "I've sent map." "owner_map" rid
-        GameRights True True _ NOTREADY_WITH_MAP _ name _ rid -> do
+        GameRights True True _ NOTREADY_WITH_MAP _ name _ rid _ -> do
           doit name "owner" "I've sent new map." "owner_map" rid
-        GameRights True True _ CONFIG _ name _ rid -> do
+        GameRights True True _ CONFIG _ name _ rid _ -> do
           doit name "owner" "I've sent map. Waiting for you!" "owner_map" rid
-        GameRights True True _ CONFIG_WAIT_OWNER _ name _ rid -> do
+        GameRights True True _ CONFIG_WAIT_OWNER _ name _ rid _ -> do
           doit name "owner" "I've sent map. Let's do this!" "owner_map" rid
-        GameRights True True _ CONFIG_WAIT_PLAYER _ name _ rid -> do
+        GameRights True True _ CONFIG_WAIT_PLAYER _ name _ rid _ -> do
           doit name "owner" "I've sent new map. Waiting for you!" "owner_map" rid
-        GameRights True _ True CONFIG _ name _ rid -> do
+        GameRights True _ True CONFIG _ name _ rid _ -> do
           doit name "player" "I've sent map. Waiting for you!" "player_map" rid
-        GameRights True _ True CONFIG_WAIT_OWNER _ name _ rid -> do
+        GameRights True _ True CONFIG_WAIT_OWNER _ name _ rid _ -> do
           doit name "player" "I've sent new map. Waiting for you!" "player_map" rid
-        GameRights True _ True CONFIG_WAIT_PLAYER _ name _ rid -> do
+        GameRights True _ True CONFIG_WAIT_PLAYER _ name _ rid _ -> do
           doit name "player" "I've sent map. Let's do this!" "player_map" rid
         _ -> do
            writeLBS . encode $ APIError "Can't send map for this game or game is not exists!"
@@ -275,9 +275,9 @@ setPublic mongoHost mongoUser mongoPass mongoDb = do
                   writeLBS "ok"
                   modifyResponse . setResponseCode $ 200
               case rights of
-                GameRights True True _ NOTREADY _ name False _ -> do
+                GameRights True True _ NOTREADY _ name False _ _ -> do
                   doit name
-                GameRights True True _ NOTREADY_WITH_MAP _ name False _ -> do
+                GameRights True True _ NOTREADY_WITH_MAP _ name False _ _ -> do
                   doit name
                 _ -> do
                   writeLBS . encode $ APIError "Can't make this game public!"
@@ -339,9 +339,9 @@ connectGamePlayer mongoHost mongoUser mongoPass mongoDb = do
                   writeLBS $ encode $ SessionInfo game sessionId
                   modifyResponse . setResponseCode $ 200
               case rights of
-                GameRights True False False NOTREADY _ _ _ _ -> do
+                GameRights True False False NOTREADY _ _ _ _ _ -> do
                   doit
-                GameRights True False False NOTREADY_WITH_MAP _ _ _ _ -> do
+                GameRights True False False NOTREADY_WITH_MAP _ _ _ _ _ -> do
                   doit
                 _ -> do
                   writeLBS . encode $ APIError "Can't connect as player!"
@@ -365,7 +365,7 @@ connectGameGuest mongoHost mongoUser mongoPass mongoDb = do
                                        Nothing -> ""
               rights <- liftIO $ fillRights pipe mongoDb game Nothing
               case rights of
-                GameRights True _ _ _ _ _ _ _ -> do
+                GameRights True _ _ _ _ _ _ _ _ -> do
                   sessionId <- liftIO $ UUID.toString <$> nextRandom
                   let act = [(
                                [
@@ -417,44 +417,81 @@ shoot mongoHost mongoUser mongoPass mongoDb = do
   session <- getParam "session"
   mbshot <- fmap (\x -> decode x :: Maybe Shot) $ readRequestBody 4096
   case mbshot of 
-        -- Just (Shot x y) -> do
-        --       let game = case pgame of Just g -> B.unpack g
-        --                                Nothing -> ""
-        --       let msess = (B.unpack <$> session)
-        --       rights <- liftIO $ fillRights pipe mongoDb game msess
-        --       let doit n = do
-        --           let act = [(
-        --                        [
-        --                          "game" =: game
-        --                        ]::Selector,
-        --                        [
-        --                          "$set" =: ["public" =: True, "message" =: msg]
-        --                        ]::Document,
-        --                        [ ]::[UpdateOption]
-        --                     )]
-        --           a $ MQ.updateAll "games" act
-        --           let chat = [ "game" =: game
-        --                      , "name" =: n
-        --                      , "session" =: msess
-        --                      , "time" =: time
-        --                      , "message" =: "Attention! Game is public now!"
-        --                      ]::Document
-        --           a $ MQ.insert "chats" chat
-        --           writeLBS "ok"
-        --           modifyResponse . setResponseCode $ 200
-        --       case rights of
-        --         GameRights True True _ NOTREADY _ name False _ -> do
-        --           doit name
-        --         GameRights True True _ NOTREADY_WITH_MAP _ name False _ -> do
-        --           doit name
-        --         _ -> do
-        --           writeLBS . encode $ APIError "Can't make this game public!"
-        --           modifyResponse $ setResponseCode 400
+        Just shot -> do
+              let game = case pgame of Just g -> B.unpack g
+                                       Nothing -> ""
+              let msess = (B.unpack <$> session)
+              rights <- liftIO $ fillRights pipe mongoDb game msess
+              let doit n (Shot x y) enemy cell response turn = do
+                  let act = [(
+                               [
+                                 "game" =: game
+                               ]::Selector,
+                               [
+                                 "$set" =: [enemy =: [(T.pack . DL.concat $ ["map.", show y,".",show x]) =: cell]],
+                                 "$push" =: ["turn" =: turn]
+                               ]::Document,
+                               [ ]::[UpdateOption]
+                            )]
+                  a $ MQ.updateAll "games" act
+                  let chat = [ "game" =: game
+                             , "name" =: n
+                             , "session" =: msess
+                             , "time" =: time
+                             , "message" =: (T.pack . DL.concat $ [shotLabel x y, " - ", response])
+                             ]::Document
+                  a $ MQ.insert "chats" chat
+                  writeLBS . encode $ response
+                  modifyResponse . setResponseCode $ 200
+              case rights of
+                GameRights True True _ OWNER _ name _ _ (Just gameinfo) -> do
+                  let enemymap = (BS.at "map" (BS.at "player" gameinfo)) :: [[Int]]
+                  case isShotSane enemymap shot of
+                    True -> case getCell enemymap shot of 
+                      0 -> doit name shot "player" 2 "miss" "player"
+                      1 -> case isSink enemymap shot of
+                        True -> case isWin enemymap of
+                          True -> doit name shot "player" 3 "WON" "finished"
+                          False -> doit name shot "player" 3 "sank" "owner"
+                        False -> doit name shot "player" 3 "hit" "owner"
+                      2 -> do
+                        writeLBS . encode $ APIError "You already shot here!"
+                        modifyResponse $ setResponseCode 406
+                      3 -> do
+                        writeLBS . encode $ APIError "You already shot here!"
+                        modifyResponse $ setResponseCode 406
+                    otherwise -> do
+                      writeLBS . encode $ APIError "Wrong shot!"
+                      modifyResponse $ setResponseCode 406
+                GameRights True _ True PLAYER _ name _ _ (Just gameinfo) -> do
+                  let enemymap = (BS.at "map" (BS.at "owner" gameinfo)) :: [[Int]]
+                  case isShotSane enemymap shot of
+                    True -> case getCell enemymap shot of 
+                      0 -> doit name shot "owner" 2 "miss" "owner"
+                      1 -> case isSink enemymap shot of
+                        True -> case isWin enemymap of
+                          True -> doit name shot "owner" 3 "WON" "finished"
+                          False -> doit name shot "owner" 3 "sank" "player"
+                        False -> doit name shot "owner" 3 "hit" "player"
+                      2 -> do
+                        writeLBS . encode $ APIError "You already shot here!"
+                        modifyResponse $ setResponseCode 406
+                      3 -> do
+                        writeLBS . encode $ APIError "You already shot here!"
+                        modifyResponse $ setResponseCode 406
+                    otherwise -> do
+                      writeLBS . encode $ APIError "Wrong shot!"
+                      modifyResponse $ setResponseCode 406
+                _ -> do
+                  writeLBS . encode $ APIError "Can't make this game public!"
+                  modifyResponse $ setResponseCode 400
         _ -> do
               writeLBS . encode $ APIError "Can't find coordinates!"
               modifyResponse $ setResponseCode 400
   liftIO $ closeConnection pipe
 
+shotLabel:: Int -> Int -> String
+shotLabel x y = DL.concat [DL.take 1 . DL.drop x $ "ABCDEFGHIJKLMNOPQRSTUVWXYZ", show . (+1) $ y]
 --------------------------
 -- write message
 --   post game id, session, message
@@ -489,15 +526,15 @@ sendMessage mongoHost mongoUser mongoPass mongoDb = do
                            , "message" =: message
                            ]::Document
               case rights of
-                GameRights True True _ _ _ n _ _ -> do
+                GameRights True True _ _ _ n _ _ _ -> do
                   a $ MQ.insert "chats" $ chat n
                   writeLBS "ok"
                   modifyResponse . setResponseCode $ 201
-                GameRights True _ True _ _ n _ _ -> do
+                GameRights True _ True _ _ n _ _ _ -> do
                   a $ MQ.insert "chats" $ chat n
                   writeLBS "ok"
                   modifyResponse . setResponseCode $ 201
-                GameRights True _ _ _ True n _ _ -> do
+                GameRights True _ _ _ True n _ _ _ -> do
                   a $ MQ.insert "chats" $ chat n
                   writeLBS "ok"
                   modifyResponse . setResponseCode $ 201
@@ -541,15 +578,15 @@ readMessages mongoHost mongoUser mongoPass mongoDb = do
   let action g t = rest =<< MQ.find (MQ.select ["time" =: ["$gt" =: t], "game" =: g] "chats")
   rights <- liftIO $ fillRights pipe mongoDb game msess
   case rights of
-    GameRights True True _ _ _ _ _ _ -> do
+    GameRights True True _ _ _ _ _ _ _ -> do
       messages <- a $ action game ltime
       writeLBS . encode $ fmap (\m -> ChatMessage (BS.at "game" m) (BS.at "name" m) (BS.at "session" m) (BS.at "time" m) (BS.at "message" m)) messages
       modifyResponse . setResponseCode $ 200
-    GameRights True _ True _ _ _ _ _ -> do
+    GameRights True _ True _ _ _ _ _ _ -> do
       messages <- a $ action game ltime
       writeLBS . encode $ fmap (\m -> ChatMessage (BS.at "game" m) (BS.at "name" m) (BS.at "session" m) (BS.at "time" m) (BS.at "message" m)) messages
       modifyResponse . setResponseCode $ 200
-    GameRights True _ _ _ True _ _ _ -> do
+    GameRights True _ _ _ True _ _ _ _ -> do
       messages <- a $ action game ltime 
       writeLBS . encode $ fmap (\m -> ChatMessage (BS.at "game" m) (BS.at "name" m) (BS.at "session" m) (BS.at "time" m) (BS.at "message" m)) messages
       modifyResponse . setResponseCode $ 200
@@ -628,11 +665,11 @@ fillRights pipe mongoDb game session = do
                             True -> T.unpack $ BS.at "name" $ Prelude.head $ Prelude.filter (\x -> (BS.at "session" x) == sess) $ BS.at "guests" g
                             False -> ""
           let rules = BS.at "rules" g
-          return $ GameRights True isowner isplayer (turn vturn) isguest uname ispublic rules
+          return $ GameRights True isowner isplayer (turn vturn) isguest uname ispublic rules game
         Nothing -> do
           vturn <- try (BS.look "turn" g) :: IO (Either SomeException BS.Value)
-          return $ GameRights True False False (turn vturn) False "" False "free"
-    Nothing -> return $ GameRights False False False OWNER False "" False "free"
+          return $ GameRights True False False (turn vturn) False "" False "free" Nothing
+    Nothing -> return $ GameRights False False False OWNER False "" False "free" Nothing
 
 getTurn :: [String] -> Turn
 getTurn = getTurn' NOTREADY
@@ -755,15 +792,25 @@ getCell :: [[Int]] -> Shot -> Int
 getCell sm (Shot x y) = (DL.head . DL.drop x) . (DL.head . DL.drop y) $ sm
 
 isSink :: [[Int]] -> Shot -> Bool
-isSink m s = True
+isSink m (Shot x y) = checkLine x (DL.head . (DL.drop y) $ m)
+                      && checkLine y (DL.head . (DL.drop x) $ (DL.transpose m))
+
+checkLine :: Int -> [Int] -> Bool
+checkLine x xs = and $ (checkPartOfLine $ DL.drop (x+1) $ xs) ++ 
+                       (checkPartOfLine $ DL.drop ((DL.length xs) - x) $ (DL.reverse xs))
+
+checkPartOfLine :: [Int] -> [Bool]
+checkPartOfLine [] = [True]
+checkPartOfLine xs = DL.map (3==) $ getWhile (\v -> v==1|| v==3) xs
+
+getWhile :: Ord a => (a -> Bool) -> [a] -> [a]
+getWhile t [] = []
+getWhile t (x:[]) = [x | t x]
+getWhile t (x:xs) | t x = [x] ++ getWhile t xs
+                  | otherwise = []
 
 isWin :: [[Int]] -> Bool
-isWin t = True
-
-getBefore :: Ord a => a -> [a] -> [a]
-getBefore t (x:[]) = [x | x/=t]
-getBefore t (x:xs) | x/=t = [x] ++ getBefore t xs
-                   | otherwise = []
+isWin sm = sum [sum [DL.head $ [0 | c/=1] ++ [1] | c <- l] | l <- sm] == 1
 
 ----------------------
 -- MongoDB functions

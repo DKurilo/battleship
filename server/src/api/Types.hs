@@ -21,6 +21,7 @@ data GameRights = GameRights { grIsExists :: Bool
                              , grMyName :: String
                              , grPublic :: Bool
                              , grRules :: String
+                             , grGame :: Maybe Document
                              }
 
 data PublicGame = PublicGame { pgGameId :: String
