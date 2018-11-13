@@ -38,6 +38,7 @@ export type Person = {
   name: String;
   message: String;
   map?: Sea;
+  new: boolean;
 }
 export type Game = {
   rules: String;
@@ -48,10 +49,11 @@ export type Game = {
   owner: Person;
   player?: Person;
   guests?: Array<Person>;
+  unread?: number;
 }
 export type Battleship = {
   rules?: Array<Rule>;
-  mode: 'pre'|'init'|'create'|'join_guest'|'join_player'|'loading'|'game';
+  mode: 'pre'|'init'|'create'|'join'|'loading'|'game'|'make_public';
   gameid?: String;
   session?: String;
   pre?: Array<PublicGame>;
