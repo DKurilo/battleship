@@ -121,7 +121,7 @@ createGame mongoHost mongoUser mongoPass mongoDb rulePath = do
                               "game" =: gameId,
                               "date" =: time,
                               "message" =: "",
-                              "owner" =: ["name" =: name, "message" =: message, "session" =: sessionId],
+                              "owner" =: ["name" =: (take 10 name), "message" =: (take 140 message), "session" =: sessionId],
                               "turn" =: ["notready"],
                               "public" =: False,
                               "rules" =: crules
@@ -363,7 +363,7 @@ setPublic mongoHost mongoUser mongoPass mongoDb = do
                                  "game" =: game
                                ]::Selector,
                                [
-                                 "$set" =: ["public" =: True, "message" =: msg]
+                                 "$set" =: ["public" =: True, "message" =: (take 140 msg)]
                                ]::Document,
                                [ ]::[UpdateOption]
                             )]
@@ -426,7 +426,10 @@ connectGamePlayer mongoHost mongoUser mongoPass mongoDb = do
                                  "game" =: game
                                ]::Selector,
                                [
-                                 "$set" =: ["player" =: ["name" =: name, "message" =: message, "session" =: sessionId]],
+                                 "$set" =: ["player" =: ["name" =: (take 10 name)
+                                                        , "message" =: (take 140 message)
+                                                        , "session" =: sessionId]
+                                                        ],
                                  "$push" =: ["turn" =: "player_join"]
                                ]::Document,
                                [ ]::[UpdateOption]
@@ -475,7 +478,10 @@ connectGameGuest mongoHost mongoUser mongoPass mongoDb = do
                                  "game" =: game
                                ]::Selector,
                                [
-                                 "$push" =: ["guests" =: ["name" =: name, "message" =: message, "session" =: sessionId]]
+                                 "$push" =: ["guests" =: ["name" =: (take 10 name)
+                                                         , "message" =: (take 140 message)
+                                                         , "session" =: sessionId]
+                                                         ]
                                ]::Document,
                                [ ]::[UpdateOption]
                             )]

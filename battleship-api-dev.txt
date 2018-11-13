@@ -331,7 +331,7 @@ new(1) - player_join(2) - owner_map(4)    - player_map(6)  - owner(6) - player(7
 
 
 Create game:
-curl -L http://localhost:9000/api/games/ -XPOST -H "Content-Type: application/json" -d'{"name":"dima","message":"Ha-ha-ha!!!","rules":"starwars"}' -v
+curl -L http://localhost:9000/api/games/ -XPOST -H "Content-Type: application/json" -d'{"name":"dima 1","message":"Ha-ha-ha!!!!!","rules":"starwars"}' -v
 Connect as player
 curl -L http://localhost:9000/api/games/3c0baf16-88e1-428c-8430-5b5dcc84898e/connect/player -XPOST -H "Content-Type: application/json" -d'{"name":"dima","message":"Ha-ha-ha!!!"}' -v
 Connect as guest:
@@ -357,3 +357,9 @@ isShotSane
     2 - ERR
     3 - ERR
 ERR
+
+
+
+
+
+

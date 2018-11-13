@@ -15,7 +15,7 @@ data Turn = OWNER|PLAYER|NOTREADY|NOTREADY_WITH_MAP|CONFIG|CONFIG_WAIT_OWNER|CON
 instance ToJSON Turn where
   toJSON t = case t of
     OWNER -> "owner"
-    PLAYER -> "palyer"
+    PLAYER -> "player"
     NOTREADY -> "notready"
     NOTREADY_WITH_MAP -> "notready"
     CONFIG -> "notready"
