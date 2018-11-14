@@ -33,8 +33,8 @@ import           Application
 -- | The application's routes.
 routes :: String -> [(ByteString, Handler App App ())]
 routes s = [ ("", serveDirectoryWith defaultDirectoryConfig s)
-           , (":gameid", serveDirectoryWith defaultDirectoryConfig s)
-           , (":gameid/:sessionid", serveDirectoryWith defaultDirectoryConfig s)
+           , ("/games/:gameid", serveFile $ s ++ "/index.html")
+           , ("/games/:gameid/:sessionid", serveFile $ s ++ "/index.html")
            ]
 
 ------------------------------------------------------------------------------

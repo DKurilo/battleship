@@ -1,5 +1,9 @@
 :local(.JoinPopup) {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
-  margin: 50px 0 100px;
-  text-align: left;
+  height: 100%;
+  background: rgba(255,255,255,.4);
+  z-index: 10;
 }

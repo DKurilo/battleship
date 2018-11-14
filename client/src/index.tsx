@@ -1,8 +1,8 @@
 import * as React from 'react';
 import * as R from 'ramda';
-import { RxHR } from '@akanass/rx-http-request';
 import { of } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { ajax } from 'rxjs/ajax';
+import { tap, delay } from 'rxjs/operators';
 import * as ReactDOM from 'react-dom';
 
 import * as Types from './types';
@@ -18,6 +18,15 @@ import { Comp, concat } from './Utils';
 import './index.css';
 import registerServiceWorker from './registerServiceWorker';
 
+/*****************
+*
+* You need to understand, battle is mutable object.
+* Each time you are using Object.assign it's mutated
+* It's not pure, but it allow us to have multiple threads
+* and to work with games list and with messages
+* 
+******************/
+
 // Initial data structure
 const initialBattleship: Types.Battleship = {
   mode: 'pre',
@@ -25,47 +34,51 @@ const initialBattleship: Types.Battleship = {
 }
 
 const getGameId: () => string = () => R.ifElse(
-  R.compose(R.lt(1), R.length),
-  path => path[1],
-  () => ''
-)(window.location.pathname.split('/'));
-const getSessionId: () => string = () => R.ifElse(
-  R.compose(R.lt(2), R.length),
+  R.allPass([R.compose(R.lt(2), R.length), R.compose(R.equals("games"), R.view(R.lensIndex(1)))]),
   path => path[2],
   () => ''
 )(window.location.pathname.split('/'));
+const getSessionId: () => string = () => R.ifElse(
+  R.allPass([R.compose(R.lt(2), R.length), R.compose(R.equals("games"), R.view(R.lensIndex(1)))]),
+  path => path[3],
+  () => ''
+)(window.location.pathname.split('/'));
+
+// Utils
+const checkMode: (a:Array<string>) => (g:Types.Battleship) => boolean = 
+  a => R.compose(R.flip(R.contains)(a), R.view(R.lensProp('mode')));
 
 // Elements
 const empty: (_:any) => React.ReactElement<any> = _ => <React.Fragment />;
 
 const loader: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
   R.whereEq({mode: 'pre'}),
-   x => <Loader />,
-   x => <React.Fragment />
+  x => <Loader />,
+  x => <React.Fragment />
 );
 
 const title: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
-  R.whereEq({mode: 'init'}),
-   x => <Title />,
-   x => <React.Fragment />
+  checkMode(['init', 'join']),
+  x => <Title />,
+  x => <React.Fragment />
 );
 
 const publicgames: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
-  R.whereEq({mode: 'init'}),
-   x => <PublicGamesList />,
-   x => <React.Fragment />
+  checkMode(['init', 'join']),
+  x => <PublicGamesList games={x.init} rules={x.rules} />,
+  x => <React.Fragment />
 );
 
 const creategame: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
-  R.whereEq({mode: 'init'}),
-   x => <CreateGame />,
-   x => <React.Fragment />
+  checkMode(['init', 'join']),
+  x => <CreateGame />,
+  x => <React.Fragment />
 );
 
 const joinpopup: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
   R.whereEq({mode: 'join'}),
-   x => <JoinPopup />,
-   x => <React.Fragment />
+  x => <JoinPopup />,
+  x => <React.Fragment />
 );
 
 const footer: (g:Types.Battleship) => React.ReactElement<any> = g => <Footer />;
@@ -77,21 +90,22 @@ const render = (game: Types.Battleship) =>
   )).fold(game), document.getElementById('root') as HTMLElement);
 
 // Actions
-const init: (battle:Types.Battleship) => void = battle => RxHR.get(battle.api + '/rules', {json: true}).pipe(
+const init: (battle:Types.Battleship) => any = battle => ajax.getJSON(battle.api + '/rules').pipe(
   tap(_ => render(battle))
-).subscribe(R.when(R.compose(R.equals(200),R.view(R.lensPath(['response', 'statusCode']))),
-  R.compose(rulesets => R.ifElse(R.isEmpty,
+).subscribe(
+  rulesets => R.ifElse(R.isEmpty,
     () => renderInit(Object.assign(battle, {mode: 'init', rules: rulesets})),
-    gameid => RxHR.get(battle.api + '/' + gameid, {json: true}).subscribe(
-      R.ifElse(R.compose(R.equals(200),R.view(R.lensPath(['response', 'statusCode']))),
-      R.compose(game => render(Object.assign(battle, {mode: 'join', rules: rulesets, join:game})), R.view(R.lensProp('body'))),
-      R.compose(_ => renderInit(Object.assign(battle, {mode: 'init', rules: rulesets})), R.view(R.lensProp('body'))))),
-    )(getGameId()), R.view(R.lensProp('body')))));
+    gameid => ajax.getJSON(battle.api + '/' + gameid).subscribe(
+      game => renderInit(Object.assign(battle, {mode: 'join', rules: rulesets, join:game})),
+      _ => renderInit(Object.assign(battle, {mode: 'init', rules: rulesets}))),
+    )(getGameId())
+);
 
-const renderInit: (battle:Types.Battleship) => void = battle => RxHR.get(battle.api, {json: true}).subscribe(
-  R.when(R.compose(R.equals(200),R.view(R.lensPath(['response', 'statusCode']))),
-  R.compose(games => render(Object.assign(battle, {mode: 'init', init: games})), R.view(R.lensProp('body')))));
-
+const renderInit: (battle:Types.Battleship) => any = battle => ajax.getJSON(battle.api).pipe(
+  tap(_ => R.when(checkMode(['init', 'join']), b => of(1).pipe(delay(4000)).subscribe(x=>renderInit(b)))(battle))
+).subscribe(
+  games => render(Object.assign(battle, {init: games}))
+);
 
 // Entry point
 /************ render(Object.assign(battle, {mode: 'init', rules: data})
