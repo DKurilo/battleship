@@ -1,6 +1,6 @@
 {
-  "short_name": "Battleships",
-  "name": "Battleships helper",
+  "short_name": "Battleship",
+  "name": "Battleship",
   "icons": [
     {
       "src": "favicon.ico",
@@ -8,7 +8,7 @@
       "type": "image/x-icon"
     }
   ],
-  "start_url": "./index.html",
+  "start_url": "/index.html",
   "display": "standalone",
   "theme_color": "#000000",
   "background_color": "#ffffff"

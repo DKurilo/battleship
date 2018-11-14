@@ -32,7 +32,10 @@ import           Application
 ------------------------------------------------------------------------------
 -- | The application's routes.
 routes :: String -> [(ByteString, Handler App App ())]
-routes s = [ ("", serveDirectoryWith defaultDirectoryConfig s) ]
+routes s = [ ("", serveDirectoryWith defaultDirectoryConfig s)
+           , (":gameid", serveDirectoryWith defaultDirectoryConfig s)
+           , (":gameid/:sessionid", serveDirectoryWith defaultDirectoryConfig s)
+           ]
 
 ------------------------------------------------------------------------------
 -- | The application initializer.

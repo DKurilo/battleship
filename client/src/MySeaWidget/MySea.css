@@ -1,0 +1,9 @@
+:local(.MySea) {
+  display: inline-block;
+  margin: 0 20px 20px;
+}
+
+:local(.h3){
+  margin: 5px auto 5px;
+  text-align: center;
+}

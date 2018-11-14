@@ -11,20 +11,20 @@ export type Box = {
 };
 
 export type PublicGame = {
-  rules: String;
-  game: String;
-  owner: String;
-  message: String;
+  rules: string;
+  game: string;
+  owner: string;
+  message: string;
 }
 export type Rule = {
-  rules: String;
-  name: String;
-  id: String;
+  rules: string;
+  name: string;
+  id: string;
   order: number;
 }
 export type Message = {
-  name: String;
-  message: String;
+  name: string;
+  message: string;
   time: Number;
 }
 export type Point = {
@@ -35,18 +35,19 @@ export type CState = 'empty'|'miss'|'hit'|'ship'|'wait';
 export type SeaLine = Array<CState>;
 export type Sea = Array<SeaLine>;
 export type Person = {
-  name: String;
-  message: String;
+  name: string;
+  message: string;
   map?: Sea;
-  new: boolean;
+  new?: boolean;
 }
 export type Game = {
-  rules: String;
+  rules: string;
   turn: 'notready'|'owner'|'player'|'owner_win'|'palyer_win';
   you: 'owner'|'player'|'guest';
-  game: String;
-  message: String;
+  game: string;
+  message: string;
   owner: Person;
+  isPublic: boolean;
   player?: Person;
   guests?: Array<Person>;
   unread?: number;
@@ -54,12 +55,14 @@ export type Game = {
 export type Battleship = {
   rules?: Array<Rule>;
   mode: 'pre'|'init'|'create'|'join'|'loading'|'game'|'make_public';
-  gameid?: String;
-  session?: String;
-  pre?: Array<PublicGame>;
+  gameid?: string;
+  session?: string;
+  init?: Array<PublicGame>;
+  join?: PublicGame;
   game?: Game;
   initSea?: Sea;
   currentBoard?: "my"|"enemy";
   currentPos?: Point;
-  chat?: Array<Message>
+  chat?: Array<Message>;
+  api: string;
 }

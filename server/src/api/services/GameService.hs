@@ -47,6 +47,7 @@ gameRoutes mongoHost mongoUser mongoPass mongoDb rulePath = [
     ("/", method GET $ getPublicGamesList mongoHost mongoUser mongoPass mongoDb),
     ("/", method POST $ createGame mongoHost mongoUser mongoPass mongoDb rulePath),
     ("/rules", method GET $ getRules rulePath),
+    ("/:gameid", method GET $ getGameShortInfo mongoHost mongoUser mongoPass mongoDb),
     ("/:gameid/:session/setmap", method POST $ sendMap mongoHost mongoUser mongoPass mongoDb rulePath),
     ("/:gameid/:session", method GET $ getStatus mongoHost mongoUser mongoPass mongoDb),
     ("/:gameid/:session/invitebot", method POST $ inviteBot mongoHost mongoUser mongoPass mongoDb),
@@ -89,6 +90,40 @@ getPublicGamesList mongoHost mongoUser mongoPass mongoDb = do
   liftIO $ closeConnection pipe
   modifyResponse . setResponseCode $ 200
 
+------------------------
+-- get short game info
+--   send game id and session
+--   GET /api/games/{gameid}
+--   response short game info
+--   200
+--   {
+--     "game": {gameid},
+--     "message": {message},
+--     "owner": {name},
+--     "rules": {rules}
+--   }
+--   404, 500
+--   {message}
+getGameShortInfo :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
+getGameShortInfo mongoHost mongoUser mongoPass mongoDb = do
+  pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
+  let a action = liftIO $ performAction pipe mongoDb action
+  modifyResponse $ setHeader "Content-Type" "application/json"
+  pgame <- getParam "gameid"
+  let game = case pgame of Just g -> B.unpack g
+                           Nothing -> ""
+  rights <- liftIO $ fillRights pipe mongoDb game Nothing
+  case rights of
+    GameRights True _ _ _ _ _ _ rules (Just gameinfo) -> do
+           let owner = BS.at "owner" gameinfo
+           let ownername = BS.at "name" owner
+           let message = (BS.at "message" gameinfo)
+           modifyResponse . setResponseCode $ 200
+           writeLBS . encode $ PublicGame game ownername message rules
+    _ -> do
+           writeLBS . encode $ APIError "Game not found!"
+           modifyResponse $ setResponseCode 404
+  liftIO $ closeConnection pipe
 
 ----------------------------
 -- create game 
@@ -254,7 +289,7 @@ getStatus mongoHost mongoUser mongoPass mongoDb = do
                            Nothing -> ""
   let msess = (B.unpack <$> session)
   rights <- liftIO $ fillRights pipe mongoDb game msess
-  let getGStatus you turn rules gameinfo = do
+  let getGStatus you turn rules gameinfo isPublic = do
       let owner = BS.at "owner" gameinfo
       let ownername = BS.at "name" owner
       let ownermessage = BS.at "message" owner
@@ -302,19 +337,20 @@ getStatus mongoHost mongoUser mongoPass mongoDb = do
                                               ]
                           , "player" .= playerobj
                           , "guests" .= guestsobj
+                          , "isPublic" .= isPublic
                           ]
       return status
   case rights of
-    GameRights True True False turn False _ _ rules (Just gameinfo) -> do
-      status <- liftIO $ getGStatus "owner" turn rules gameinfo
+    GameRights True True False turn False _ isPublic rules (Just gameinfo) -> do
+      status <- liftIO $ getGStatus "owner" turn rules gameinfo isPublic
       writeLBS . encode $ status
       modifyResponse . setResponseCode $ 200
-    GameRights True False True turn False _ _ rules (Just gameinfo) -> do
-      status <- liftIO $ getGStatus "player" turn rules gameinfo
+    GameRights True False True turn False _ isPublic rules (Just gameinfo) -> do
+      status <- liftIO $ getGStatus "player" turn rules gameinfo isPublic
       writeLBS . encode $ status
       modifyResponse . setResponseCode $ 200
-    GameRights True False False turn True _ _ rules (Just gameinfo) -> do
-      status <- liftIO $ getGStatus "guest" turn rules gameinfo
+    GameRights True False False turn True _ isPublic rules (Just gameinfo) -> do
+      status <- liftIO $ getGStatus "guest" turn rules gameinfo isPublic
       writeLBS . encode $ status
       modifyResponse . setResponseCode $ 200
     _ -> do
@@ -776,9 +812,10 @@ fillRights pipe mongoDb game session = do
           let rules = BS.at "rules" g
           return $ GameRights True isowner isplayer (turn vturn) isguest uname ispublic rules game
         Nothing -> do
+          let rules = BS.at "rules" g
           vturn <- try (BS.look "turn" g) :: IO (Either SomeException BS.Value)
-          return $ GameRights True False False (turn vturn) False "" False "free" Nothing
-    Nothing -> return $ GameRights False False False OWNER False "" False "free" Nothing
+          return $ GameRights True False False (turn vturn) False "" False rules game
+    Nothing -> return $ GameRights False False False NOTREADY False "" False "free" Nothing
 
 getTurn :: [String] -> Turn
 getTurn = getTurn' NOTREADY

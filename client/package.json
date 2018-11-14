@@ -1,17 +1,21 @@
 {
   "name": "battleships",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "private": false,
-  "homepage": ".",
+  "homepage": "/",
   "dependencies": {
+    "@akanass/rx-http-request": "^3.1.0",
+    "@jpavon/react-scripts-ts": "^0.9.0",
+    "@types/ramda": "^0.25.41",
+    "ramda": "^0.25.0",
     "react": "^16.6.0",
     "react-dom": "^16.6.0",
-    "react-scripts-ts": "3.1.0"
+    "rxjs": "^6.3.3"
   },
   "scripts": {
     "start": "react-scripts-ts start",
     "build": "react-scripts-ts build",
-    "build:prod": "cross-env GENERATE_SOURCEMAP=false react-scripts-ts build",
+    "build:prod": "cross-env GENERATE_SOURCEMAP=false react-scripts-ts build --mode=production",
     "test": "react-scripts-ts test --env=jsdom",
     "eject": "react-scripts-ts eject"
   },
@@ -22,5 +26,17 @@
     "@types/react-dom": "^16.0.9",
     "cross-env": "^5.2.0",
     "typescript": "^3.1.3"
+  },
+  "browserslist": {
+    "development": [
+      "last 2 chrome versions",
+      "last 2 firefox versions",
+      "last 2 edge versions"
+    ],
+    "production": [
+      ">0.25%",
+      "not op_mini all",
+      "ie 11"
+    ]
   }
 }

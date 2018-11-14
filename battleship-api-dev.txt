@@ -150,6 +150,19 @@ get game status
   }
   404, 500
   {message}
+get short status
+  send game id and session
+  GET /api/games/{gameid}
+  response status (map contain only unknown or hit if game is not finished and everything if finished) or error
+  200
+  {
+    "game": {gameid},
+    "message": {message},
+    "owner": {name},
+    "rules": {rules}
+  }
+  404, 500
+  {message}
 
 
 

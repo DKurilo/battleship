@@ -13,3 +13,5 @@ export const Comp: (g:Types.Component) => Types.Box = g => ({
   fold: g,
   map: (f:(e:Types.Element) => Types.Element) => Comp(x => f(g(x))),
 });
+
+export const concat: (cel: Types.Box, el:Types.Box) => Types.Box = (cel, el) => cel.concat(el);
