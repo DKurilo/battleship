@@ -5,7 +5,7 @@ import * as Types from '../types';
 import { Sea } from '../SeaWidget';
 import { Comp } from '../Utils';
 
-import styles from './ConfigurableSea.css';
+import styles from './ConfigurableSea.scss';
 
 
 const clickHandler: (func: (x: number, y: number) => void) => (x: number) => (y: number) => (e:React.MouseEvent<HTMLImageElement>) => void = 

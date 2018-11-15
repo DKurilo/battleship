@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import styles from './Title.css';
+import styles from './Title.scss';
 
 export const Title = (props:any) => 
   <div className={styles.Title}>

@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import styles from './GuestsList.css';
+import styles from './GuestsList.scss';
 
 export const GuestsList = (props:any) => 
   <div className={styles.GuestsList}>

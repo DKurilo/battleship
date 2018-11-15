@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import styles from './MessageList.css';
+import styles from './MessageList.scss';
 
 export const MessageList = (props:any) => 
   <div className={styles.MessageList}>

@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import styles from './Footer.css';
+import styles from './Footer.scss';
 
 export const Footer = (props:any) => 
   <div className={styles.Footer}>

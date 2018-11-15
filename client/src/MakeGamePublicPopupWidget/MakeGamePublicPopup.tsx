@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import styles from './MakeGamePublicPopup.css';
+import styles from './MakeGamePublicPopup.scss';
 
 export const MakeGamePublicPopup = (props:any) => 
   <div className={styles.MakeGamePublicPopup}>

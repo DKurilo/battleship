@@ -1,16 +1,21 @@
-body {
+html, body {
   margin: 0 auto;
   padding: 0;
+  border: none;
   font-family: sans-serif;
   text-align: center;
+  width: 100%;
+  min-height: 100wh;
 }
 
 #root{
-  margin: 0 auto;
   display: inline-block;
   width: 80%;
   max-width: 800px;
   margin: 0 auto;
+  height: 100%;
+  box-sizing: border-box;
+  padding-bottom: 50px;
 }
 
 .Coords{

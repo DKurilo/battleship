@@ -4,7 +4,9 @@ import * as Types from '../types';
 
 import { Comp, concat } from '../Utils';
 
-import styles from './PublicGamesList.css';
+import styles from './PublicGamesList.scss';
+
+const formatRules: (s:string) => {__html: string} = s => ({__html: s.replace(/\n/g, '<br/>')});
 
 const empty: (_:any) => React.ReactElement<any> = _ => <React.Fragment />;
 
@@ -12,9 +14,11 @@ const game: (g: Types.PublicGame) => (rules:Array<Types.Rule>) => React.ReactEle
   ((r:Types.Rule) => 
     <div className="game">
       <div className="owner">{g.owner}</div>
-      <div className="owner">{g.message}</div>
-      <div className="rules">{r.name}</div>
-      <div className="rulesDescription">{r.rules}</div>
+      <div className="message">{g.message}</div>
+      <div className="rules">
+        <div className="rule-name">{r.name}</div>
+        <div className="rules-description" dangerouslySetInnerHTML={formatRules(r.rules)} />
+      </div>
     </div>)(R.find(R.propEq('id', g.rules))(rules));
 
 export const PublicGamesList = (props:{games: Array<Types.PublicGame>, rules: Array<Types.Rule>}) =>

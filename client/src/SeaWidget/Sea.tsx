@@ -3,7 +3,7 @@ import * as Types from '../types';
 
 import { Comp } from '../Utils';
 
-import './Sea.css';
+import './Sea.scss';
 
 import './empty.png';
 import './hit.png';

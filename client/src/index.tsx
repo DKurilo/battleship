@@ -15,7 +15,7 @@ import { JoinPopup } from './JoinPopupWidget';
 import { Footer } from './FooterWidget';
 import { Comp, concat } from './Utils';
 
-import './index.css';
+import './index.scss';
 import registerServiceWorker from './registerServiceWorker';
 
 /*****************
@@ -58,19 +58,19 @@ const loader: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
 );
 
 const title: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
-  checkMode(['init', 'join']),
+  checkMode(['init', 'join', 'create']),
   x => <Title />,
   x => <React.Fragment />
 );
 
 const publicgames: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
-  checkMode(['init', 'join']),
+  checkMode(['init', 'join', 'create']),
   x => <PublicGamesList games={x.init} rules={x.rules} />,
   x => <React.Fragment />
 );
 
 const creategame: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
-  checkMode(['init', 'join']),
+  checkMode(['init', 'join', 'create']),
   x => <CreateGame />,
   x => <React.Fragment />
 );
@@ -102,7 +102,8 @@ const init: (battle:Types.Battleship) => any = battle => ajax.getJSON(battle.api
 );
 
 const renderInit: (battle:Types.Battleship) => any = battle => ajax.getJSON(battle.api).pipe(
-  tap(_ => R.when(checkMode(['init', 'join']), b => of(1).pipe(delay(4000)).subscribe(x=>renderInit(b)))(battle))
+  tap(_ => R.when(checkMode(['init', 'join', 'create']), b => 
+    of(1).pipe(delay(4000)).subscribe(x=>renderInit(b)))(battle))
 ).subscribe(
   games => render(Object.assign(battle, {init: games}))
 );
