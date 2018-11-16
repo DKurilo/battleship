@@ -30,8 +30,8 @@ const game: (f: Function) => (g: Types.PublicGame) => (rules:Array<Types.Rule>) 
       </div>
     </div>)(R.find(R.propEq('id', g.rules))(rules));
 
-export const PublicGamesList = (props:{games: Array<Types.PublicGame>, rules: Array<Types.Rule>}) =>
+export const PublicGamesList = (props:{games: Array<Types.PublicGame>, rules: Array<Types.Rule>, action: Function}) =>
   <div className={styles.PublicGamesList}>
     <h3>Or join one of these games:</h3>
-    {R.reduce(concat, Comp(empty), R.map(R.compose(Comp, game(wrapAction(console.log))), props.games)).fold(props.rules)}
+    {R.reduce(concat, Comp(empty), R.map(R.compose(Comp, game(wrapAction(props.action))), props.games)).fold(props.rules)}
   </div>

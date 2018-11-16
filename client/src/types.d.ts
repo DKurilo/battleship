@@ -66,4 +66,7 @@ export type Battleship = {
   currentPos?: Point;
   chat?: Array<Message>;
   api: string;
+  popupName?: string;
+  popupMessage?: string;
+  popupError?: string;
 }
