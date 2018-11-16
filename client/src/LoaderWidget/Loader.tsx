@@ -4,5 +4,5 @@ import styles from './Loader.scss';
 
 export const Loader = (props:any) => 
   <div className={styles.Loader}>
-    Wait, please..
+    <div>Wait, please..</div>
   </div>

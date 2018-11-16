@@ -15,6 +15,7 @@ export type PublicGame = {
   game: string;
   owner: string;
   message: string;
+  turn: string;
 }
 export type Rule = {
   rules: string;

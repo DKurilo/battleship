@@ -1,10 +1,60 @@
 :local(.PublicGamesList) {
   width: 100%;
-  margin: 50px 0 100px;
+  margin: 10px 0 20px;
   text-align: left;
-  .game{
-    .owner{
+  .game {
+    margin: 5px 0;
+    padding: 10px;
+    border: 1px solid #555555;
+    background: #eeeeee;
+    border-radius: 10px;
+    position: relative;
+    font: 12px/14px sans-serif;
+    .label {
+    }
+    .owner {
       font-weight: bold;
+    }
+    .message {
+
+    }
+    .rules {
+      position: relative;
+      .rules-name {
+        font-weight: bold;
+        text-decoration: underline;
+        text-decoration-style: dashed;
+        &:hover {
+          .rules-description {
+            display: block;
+          }
+        }
+      }
+      .rules-description {
+        box-sizing: border-box;
+        position: absolute;
+        top: 5px;
+        display: none;
+        width: 100%;
+        border-radius: 7px;
+        padding: 5px;
+        font: 10px/12px sans-serif;
+        background: #ffffff;
+        border: 1px solid #888888;
+      }
+    }
+    .button{
+      padding: 5px 20px;
+      border-radius: 7px;
+      background: rgba(#0030aa, 1);
+      cursor: pointer;
+      transition: background .2s ease;
+      color: white;
+      margin: 10px 0 0;
+      display: inline-block;
+      &:hover {
+        background: rgba(#0030aa, .8);
+      }
     }
   }
 }

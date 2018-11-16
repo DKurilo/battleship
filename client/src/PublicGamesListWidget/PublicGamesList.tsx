@@ -10,19 +10,28 @@ const formatRules: (s:string) => {__html: string} = s => ({__html: s.replace(/\n
 
 const empty: (_:any) => React.ReactElement<any> = _ => <React.Fragment />;
 
-const game: (g: Types.PublicGame) => (rules:Array<Types.Rule>) => React.ReactElement<any> = g => rules =>
-  ((r:Types.Rule) => 
+const wrapAction: (f: Function) => (id: string) => (_:any) => any = f => id => _ => f(id);
+
+const game: (f: Function) => (g: Types.PublicGame) => (rules:Array<Types.Rule>) => React.ReactElement<any> = 
+  f => g => rules => ((r:Types.Rule) => 
     <div className="game">
-      <div className="owner">{g.owner}</div>
+      <div>
+        <span className="label">Owner: </span><span className="owner">{g.owner}</span>
+      </div>
+      <div className="label">Message:</div>
       <div className="message">{g.message}</div>
       <div className="rules">
-        <div className="rule-name">{r.name}</div>
-        <div className="rules-description" dangerouslySetInnerHTML={formatRules(r.rules)} />
+        <span className="label">Rules: </span><span className="rules-name">{r.name}
+          <div className="rules-description" dangerouslySetInnerHTML={formatRules(r.rules)} />
+        </span>
+      </div>
+      <div>
+        <div className="button" onClick={f(g.game)}>Join</div>
       </div>
     </div>)(R.find(R.propEq('id', g.rules))(rules));
 
 export const PublicGamesList = (props:{games: Array<Types.PublicGame>, rules: Array<Types.Rule>}) =>
   <div className={styles.PublicGamesList}>
-    <h3>Here is the list of public games you can join.</h3>
-    {R.reduce(concat, Comp(empty), R.map(R.compose(Comp, game), props.games)).fold(props.rules)}
+    <h3>Or join one of these games:</h3>
+    {R.reduce(concat, Comp(empty), R.map(R.compose(Comp, game(wrapAction(console.log))), props.games)).fold(props.rules)}
   </div>

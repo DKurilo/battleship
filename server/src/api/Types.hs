@@ -18,9 +18,9 @@ instance ToJSON Turn where
     PLAYER -> "player"
     NOTREADY -> "notready"
     NOTREADY_WITH_MAP -> "notready"
-    CONFIG -> "notready"
-    CONFIG_WAIT_OWNER -> "notready"
-    CONFIG_WAIT_PLAYER -> "notready"
+    CONFIG -> "config"
+    CONFIG_WAIT_OWNER -> "config"
+    CONFIG_WAIT_PLAYER -> "config"
     PLAYER_WIN -> "player_win"
     OWNER_WIN -> "owner_win"
 
@@ -39,9 +39,10 @@ data PublicGame = PublicGame { pgGameId :: String
                              , pgOwnerName :: String
                              , pgMessage :: String
                              , pgRules :: String
+                             , pgTurn :: Turn
                              }
 instance ToJSON PublicGame where
-  toJSON (PublicGame g o m r) = object [ "game" .= g, "owner" .= o, "message" .= m, "rules" .= r ]
+  toJSON (PublicGame g o m r t) = object [ "game" .= g, "owner" .= o, "message" .= m, "rules" .= r, "turn" .= t ]
 
 data NewGameUser = NewGameUser { nguName :: String
                                , nguMessage :: String

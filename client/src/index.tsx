@@ -48,37 +48,47 @@ const getSessionId: () => string = () => R.ifElse(
 const checkMode: (a:Array<string>) => (g:Types.Battleship) => boolean = 
   a => R.compose(R.flip(R.contains)(a), R.view(R.lensProp('mode')));
 
+//'pre'|'init'|'create'|'join'|'loading'|'game'|'make_public'
+const generateTitle: (b:Types.Battleship) => string = b => ({
+  pre: "Battleship Game",
+  init: "Battleship Game",
+  create: "Battleship Game",
+  join: "Battleship Game",
+  game: b.game && b.game.player ? b.game.owner.name + " vs " + b.game.player.name : 'Battleship Game',
+  make_public: b.game && b.game.player ? b.game.owner.name + " vs " + b.game.player.name : 'Battleship Game',
+}[b.mode]);  
+
 // Elements
 const empty: (_:any) => React.ReactElement<any> = _ => <React.Fragment />;
 
 const loader: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
   R.whereEq({mode: 'pre'}),
   x => <Loader />,
-  x => <React.Fragment />
+  _ => <React.Fragment />
 );
 
 const title: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
   checkMode(['init', 'join', 'create']),
-  x => <Title />,
-  x => <React.Fragment />
+  x => <Title text={generateTitle(x)}/>,
+  _ => <React.Fragment />
 );
 
 const publicgames: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
   checkMode(['init', 'join', 'create']),
   x => <PublicGamesList games={x.init} rules={x.rules} />,
-  x => <React.Fragment />
+  _ => <React.Fragment />
 );
 
 const creategame: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
   checkMode(['init', 'join', 'create']),
   x => <CreateGame />,
-  x => <React.Fragment />
+  _ => <React.Fragment />
 );
 
 const joinpopup: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
   R.whereEq({mode: 'join'}),
   x => <JoinPopup />,
-  x => <React.Fragment />
+  _ => <React.Fragment />
 );
 
 const footer: (g:Types.Battleship) => React.ReactElement<any> = g => <Footer />;
@@ -105,7 +115,9 @@ const renderInit: (battle:Types.Battleship) => any = battle => ajax.getJSON(batt
   tap(_ => R.when(checkMode(['init', 'join', 'create']), b => 
     of(1).pipe(delay(4000)).subscribe(x=>renderInit(b)))(battle))
 ).subscribe(
-  games => render(Object.assign(battle, {init: games}))
+  games => render(Object.assign(battle, {init: games})),
+  _ => R.when(checkMode(['init', 'join', 'create']), b => 
+    of(1).pipe(delay(4000)).subscribe(x=>renderInit(b)))(battle)
 );
 
 // Entry point

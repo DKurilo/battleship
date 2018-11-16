@@ -33,7 +33,7 @@ data GameService = GameService { }
 CL.makeLenses ''GameService
 
 gemeTimeout :: Int
-gemeTimeout = 360000
+gemeTimeout = 3600000
 
 mapWidth :: Int
 mapWidth = 10
@@ -86,7 +86,7 @@ getPublicGamesList mongoHost mongoUser mongoPass mongoDb = do
   time <- liftIO $ round <$> getPOSIXTime
   let action = rest =<< MQ.find (MQ.select ["date" =: ["$gte" =: time - gemeTimeout], "public" =: True] "games")
   games <- a $ action
-  writeLBS . encode $ fmap (\d -> PublicGame (BS.at "game" d) (BS.at "name" (BS.at "owner" d)) (BS.at "message" d) (BS.at "rules" d)) games
+  writeLBS . encode $ fmap (\d -> PublicGame (BS.at "game" d) (BS.at "name" (BS.at "owner" d)) (BS.at "message" d) (BS.at "rules" d) (getTurn $ BS.at "turn" d)) games
   liftIO $ closeConnection pipe
   modifyResponse . setResponseCode $ 200
 
@@ -114,12 +114,12 @@ getGameShortInfo mongoHost mongoUser mongoPass mongoDb = do
                            Nothing -> ""
   rights <- liftIO $ fillRights pipe mongoDb game Nothing
   case rights of
-    GameRights True _ _ _ _ _ _ rules (Just gameinfo) -> do
+    GameRights True _ _ turn _ _ _ rules (Just gameinfo) -> do
            let owner = BS.at "owner" gameinfo
            let ownername = BS.at "name" owner
            let message = (BS.at "message" gameinfo)
            modifyResponse . setResponseCode $ 200
-           writeLBS . encode $ PublicGame game ownername message rules
+           writeLBS . encode $ PublicGame game ownername message rules turn
     _ -> do
            writeLBS . encode $ APIError "Game not found!"
            modifyResponse $ setResponseCode 404
