@@ -131,7 +131,8 @@ getGameShortInfo mongoHost mongoUser mongoPass mongoDb = do
 --   POST /api/games
 --   {
 --     "username": {username},
---     "message": {message}
+--     "message": {message},
+--     "rules": {rules}
 --   }
 --   response new game id and session or error
 --   201

@@ -1,9 +1,27 @@
 import * as React from 'react';
 import * as R from 'ramda';
+import * as Types from '../types';
 
-import { Comp } from '../Utils';
+import { Comp, concat } from '../Utils';
 
 import styles from './CreateGamePopup.scss';
+import './back.png';
+
+const formatRules: (s:any) => {__html: string} = s => ({__html: s.replace(/\n/g, '<br/>')});
+
+const wrapAction: (f: Function) => (id: string) => (_:any) => any = f => id => _ => f(id);
+
+const empty: (_:any) => React.ReactElement<any> = _ => <React.Fragment />;
+
+const option: (f: Function) => (r:Types.Rule) => (cr:string) => React.ReactElement<any> = 
+  f => r => cr => 
+    <option value={r.id}>{r.name}</option>;
+
+const ruleDescription: (cr: string) => (rules: Array<Types.Rule>) => React.ReactElement<any> = 
+  cr => R.compose(R.ifElse(R.compose(R.both(R.compose(R.not, R.isNil), R.is(String)), R.view(R.lensProp('id'))),
+    x => <div className="rules-description" dangerouslySetInnerHTML={formatRules(R.view(R.lensProp('rules'))(x))} />,
+    _ => <React.Fragment />
+  ), R.find(R.propEq('id', cr)));
 
 const error: (e:string) => React.ReactElement<any> = 
   R.ifElse(R.compose(R.not, R.either(R.isNil, R.isEmpty)),
@@ -15,15 +33,35 @@ export const CreateGamePopup = (props:{close: (e:React.MouseEvent<HTMLDivElement
                                        create: (e:React.MouseEvent<HTMLDivElement>) => any,
                                        changeName: (e:React.FormEvent<HTMLInputElement>) => any,
                                        changeMessage: (e:React.FormEvent<HTMLTextAreaElement>) => any,
+                                       changeRules: (e:React.FormEvent<HTMLSelectElement>) => any,
+                                       rulessets: Array<Types.Rule>
                                        name: string,
                                        message: string,
+                                       rules: string,
                                        error: string}) => 
   <div className={styles.CreateGamePopup}>
     <div className="box">
-      <div className="back" onClick={props.close}>Back</div>
-      <input className="name" placeholder="Your name" value={props.name} onChange={props.changeName} required/><br/>
-      <textarea className="message" placeholder="Your message" value={props.message} onChange={props.changeMessage} required/><br/>
-      {Comp(error).fold(props.error)}
-      <div className="button" onClick={props.create}>Create a game</div>
+      <div className="back" onClick={props.close}></div>
+      <h3>Create new game</h3>
+      <div className="block">
+        <input className="name" placeholder="Your name" value={props.name} onChange={props.changeName} required/>
+      </div>
+      <div className="block">
+        <textarea className="message" placeholder="Your message" value={props.message} 
+                  onChange={props.changeMessage} required/>
+      </div>
+      <div className="block-rules">
+        <select className="rules" placeholder="Your Rules" value={props.rules} 
+                  onChange={props.changeRules} required>
+          <option disabled={true} selected={R.either(R.isNil, R.isEmpty)(props.rules)}>Your Rules</option>
+          {R.reduce(concat, Comp(empty), R.map(R.compose(Comp, option(wrapAction(props.changeRules))), props.rulessets))
+            .fold(props.rules)}
+        </select>
+        {Comp(ruleDescription(props.rules)).fold(props.rulessets)}
+      </div>
+      <div className="block">
+        {Comp(error).fold(props.error)}
+        <div className="button" onClick={props.create}>Create a game</div>
+      </div>
     </div>
   </div>

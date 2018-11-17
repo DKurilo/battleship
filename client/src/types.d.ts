@@ -69,4 +69,5 @@ export type Battleship = {
   popupName?: string;
   popupMessage?: string;
   popupError?: string;
+  popupRules?: string;
 }

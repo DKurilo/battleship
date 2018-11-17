@@ -63,7 +63,7 @@ const generateTitle: (b:Types.Battleship) => string = b => ({
 const empty: (_:any) => React.ReactElement<any> = _ => <React.Fragment />;
 
 const loader: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
-  R.whereEq({mode: 'pre'}),
+  checkMode(['pre', 'loading']),
   x => <Loader />,
   _ => <React.Fragment />
 );
@@ -94,6 +94,7 @@ const joinpopup: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
                   changeMessage={popupChangeMessage(x)}
                   name={x.popupName}
                   message={x.popupMessage}
+                  turn={x.join.turn}
                   error={x.popupError}/>,
   _ => <React.Fragment />
 );
@@ -104,19 +105,16 @@ const creategamepopup: (g:Types.Battleship) => React.ReactElement<any> = R.ifEls
                   create={createGame(x)}
                   changeName={popupChangeName(x)}
                   changeMessage={popupChangeMessage(x)}
+                  changeRules={popupChangeRules(x)}
                   name={x.popupName}
                   message={x.popupMessage}
-                  error={x.popupError}/>,
+                  error={x.popupError}
+                  rules={x.popupRules}
+                  rulessets={x.rules}/>,
   _ => <React.Fragment />
 );
 
 const footer: (g:Types.Battleship) => React.ReactElement<any> = g => <Footer />;
-
-//Render. Should be very simple.
-const render = (game: Types.Battleship) => 
-  ReactDOM.render(R.reduce(concat, Comp(empty), R.map(Comp, 
-    [title, creategame, publicgames, joinpopup, creategamepopup, footer, loader]
-  )).fold(game), document.getElementById('root') as HTMLElement);
 
 // Actions
 const init: (battle:Types.Battleship) => any = battle => ajax.getJSON(battle.api + '/rules').pipe(
@@ -151,7 +149,25 @@ const joinGame: (battle:Types.Battleship) => (r:string) => (_:React.MouseEvent<H
   R.ifElse( R.allPass(
       R.map(x => R.compose(R.not, R.either(R.isEmpty, R.isNil), R.view(R.lensProp(x))),
             ['popupName', 'popupMessage', 'join'])),
-    b => (r:string) => (_:React.MouseEvent<HTMLDivElement>) => console.log(b, r),
+    b => (r:string) => (_:React.MouseEvent<HTMLDivElement>) => ajax({
+      url: `${b.api}/${b.join.game}/connect/${r}`,
+      method: "POST",
+      body: {
+        name: b.popupName,
+        message: b.popupMessage,
+      },
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    }).pipe(
+      tap(_ => render(Object.assign(b, {mode: "loading"})))
+    ).subscribe (
+      r => of(1).pipe(
+        tap(_ => renderGame(Object.assign(b, {mode: 'game', gameid: r.response.game, session: r.response.session }))),
+        tap(_ => renderChat(Object.assign(b, {mode: 'game', gameid: r.response.game, session: r.response.session })))
+      ).subscribe(),
+      _ => renderInit(Object.assign(b, {mode: 'join', popupError: 'Something goes wrong. Try again later.'}))
+    ),
     b => (r:string) => (_:React.MouseEvent<HTMLDivElement>) => 
       render(Object.assign(b, {popupError: 'Name and message can\'t be empty.' }))
   );
@@ -165,10 +181,49 @@ const closeCreateGamePopup: (battle:Types.Battleship) => (_:React.MouseEvent<HTM
 const createGame: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
   R.ifElse( R.allPass(
       R.map(x => R.compose(R.not, R.either(R.isEmpty, R.isNil), R.view(R.lensProp(x))),
-            ['popupName', 'popupMessage'])),
-    b => (_:React.MouseEvent<HTMLDivElement>) => console.log(b, 'create'),
+            ['popupName', 'popupMessage', 'popupRules'])),
+    b => (_:React.MouseEvent<HTMLDivElement>) => ajax({
+      url: b.api,
+      method: "POST",
+      body: {
+        name: b.popupName,
+        message: b.popupMessage,
+        rules: b.popupRules,
+      },
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    }).pipe(
+      tap(_ => render(Object.assign(b, {mode: "loading"})))
+    ).subscribe (
+      r => of(1).pipe(
+        tap(_ => renderGame(Object.assign(b, {mode: 'game', gameid: r.response.game, session: r.response.session }))),
+        tap(_ => renderChat(Object.assign(b, {mode: 'game', gameid: r.response.game, session: r.response.session })))
+      ).subscribe(),
+      _ => renderInit(Object.assign(b, {mode: 'create', popupError: 'Something goes wrong. Try again later.'}))
+    ),
     b => (_:React.MouseEvent<HTMLDivElement>) => 
-      render(Object.assign(b, {popupError: 'Name and message can\'t be empty.' }))
+      render(Object.assign(b, {mode: 'create', popupError: 'Name, message and rules can\'t be empty.' }))
+  );
+
+const renderGame: (battle:Types.Battleship) => any = 
+  battle => ajax.getJSON(`${battle.api}/${battle.gameid}/${battle.session}`).pipe(
+    tap(_ => R.when(checkMode(['game', 'make_public']), b => 
+      of(1).pipe(delay(1000)).subscribe(x=>renderGame(b)))(battle))
+  ).subscribe(
+    game => render(Object.assign(battle, {game: game})),
+    _ => R.when(checkMode(['game', 'make_public']), b => 
+      of(1).pipe(delay(1000)).subscribe(x=>renderGame(b)))(battle)
+  );
+
+const renderChat: (battle:Types.Battleship) => any =
+  battle => ajax.getJSON(`${battle.api}/${battle.gameid}/${battle.session}/chat`).pipe(
+    tap(_ => R.when(checkMode(['game', 'make_public']), b => 
+      of(1).pipe(delay(1000)).subscribe(x=>renderChat(b)))(battle))
+  ).subscribe(
+    chat => render(Object.assign(battle, {chat: chat})),
+    _ => R.when(checkMode(['game', 'make_public']), b => 
+      of(1).pipe(delay(1000)).subscribe(x=>renderChat(b)))(battle)
   );
 
 const popupChangeName: (battle:Types.Battleship) => (e:React.FormEvent<HTMLInputElement>) => any = 
@@ -178,6 +233,31 @@ const popupChangeName: (battle:Types.Battleship) => (e:React.FormEvent<HTMLInput
 const popupChangeMessage: (battle:Types.Battleship) => (e:React.FormEvent<HTMLTextAreaElement>) => any = 
   battle => e => e.currentTarget.value.length <= 140 && 
                  render(Object.assign(battle, {popupMessage: e.currentTarget.value, popupError: ''}));
+
+const popupChangeRules: (battle:Types.Battleship) => (e:React.FormEvent<HTMLSelectElement>) => any = 
+  battle => e => render(Object.assign(battle, {popupRules: e.currentTarget.value, popupError: ''}));
+
+//Render. Should be very simple.
+const render = (game: Types.Battleship) => 
+  ReactDOM.render(R.reduce(concat, Comp(empty), R.map(Comp, 
+    [
+//      header, 
+      title,
+      creategame,
+      publicgames,
+      joinpopup,
+      creategamepopup,
+//      makepublicpopup,
+//      currentcell,
+//      mysea,
+//      enemysea,
+//      guestsea('owner'),
+//      guestsea('player'),
+//      sendmessage,
+//      chat,
+      footer,
+      loader]
+  )).fold(game), document.getElementById('root') as HTMLElement);
 
 // Entry point
 /************ render(Object.assign(battle, {mode: 'init', rules: data})
