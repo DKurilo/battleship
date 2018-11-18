@@ -1,17 +1,17 @@
 Name:                battleship
-Version:             0.1
-Synopsis:            Project Synopsis Here
-Description:         Project Description Here
-License:             AllRightsReserved
-Author:              Author
-Maintainer:          maintainer@example.com
+Version:             0.9
+Synopsis:            Battleship
+Description:         Battleship Game server
+License:             MIT
+Author:              Dima Kurilo
+Maintainer:          dkurilo@gmail.com
 Stability:           Experimental
 Category:            Web
 Build-type:          Simple
 Cabal-version:       >=1.2
 
 Flag development
-  Description: Whether to build the server in development (interpreted) mode
+  Description: Whether to build the server in development (interpreted) mode. Doesn't work now. Hope will be fixed soon.
   Default: False
 
 Executable battleship

@@ -3,13 +3,14 @@
   box-sizing: border-box;
   padding: 10px 30px;
   text-align: center;
-  background: rgba(#0030aa, 1);
+  background: rgba(#5784bf, 1);
+  box-shadow: 0 3px 0 0 rgba(#000000,.1),inset 0 -3px 0 0 rgba(#000000,.1);
   border-radius: 10px;
   color: white;
   font: 20px/25px sans-serif;
   cursor: pointer;
-  transition: background .2s ease;
+  transition: background .8s linear .2s;
   &:hover {
-    background: rgba(#0030aa, .8);
+    background: rgba(#5784bf, .8);
   }
 }

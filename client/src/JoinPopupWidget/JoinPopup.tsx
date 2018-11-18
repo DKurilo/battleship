@@ -4,7 +4,7 @@ import * as R from 'ramda';
 import { Comp } from '../Utils';
 
 import styles from './JoinPopup.scss';
-import './back.png';
+import '../assets/back.png';
 
 const error: (e:string) => React.ReactElement<any> = 
   R.ifElse(R.compose(R.not, R.either(R.isNil, R.isEmpty)),

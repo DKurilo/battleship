@@ -1,5 +1,86 @@
 :local(.Header) {
   width: 100%;
-  margin: 50px 0 100px;
   text-align: left;
+  background: rgba(#c9ddf2,.3);
+  border: 1px solid rgba(#c9ddf2,.4);
+  font: 12px/20px sans-serif;
+  .close {
+    width: 60px;
+    height: 30px;
+    background: url(../assets/back.png) center center no-repeat;
+    opacity: 1;
+    transition: opacity .8s linear .2s;
+    cursor: pointer;
+    &:hover {
+      opacity: .8;
+    }
+  }
+  .right{
+    position: absolute;
+    top: 8px;
+    right: 0;
+    .rules-box {
+      position: relative;
+      display: inline-block;
+      margin-right: 10px;
+      .rules {
+        font-weight: bold;
+        text-decoration: underline;
+        text-decoration-style: dashed;
+      }
+      &:hover {
+        .rules-description {
+          display: block;
+        }
+      }
+      .rules-description {
+        box-sizing: border-box;
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: none;
+        width: 100%;
+        min-width: 400px;
+        border-radius: 7px;
+        padding: 5px;
+        font: 10px/12px sans-serif;
+        background: #fafcfe;
+        border-color: #f4f8fc;
+        color: #d16b00;
+      }
+    }
+    .state {
+      font-weight: bold;
+      margin-right: 10px;
+      display: inline-block;
+      text-transform: uppercase;
+    }
+    .copylink {
+      display: inline-block;
+      margin-right: 10px;
+      .link {
+        width: 100px;
+        margin-right: 4px;
+        font: 12px/14px sans-serif;
+      }
+    }
+    .make-public, .copy {
+      position: relative;
+      top: -1px;
+      display: inline-block;
+      padding: 0 10px;
+      border-radius: 7px;
+      background: rgba(#5784bf, 1);
+      box-shadow: 0 3px 0 0 rgba(#000000,.1),inset 0 -3px 0 0 rgba(#000000,.1);
+      cursor: pointer;
+      transition: background .8s linear .2s;
+      color: white;
+      margin: 0;
+      display: inline-block;
+      &:hover {
+        background: rgba(#5784bf, .8);
+      }
+    }
+  }
 }

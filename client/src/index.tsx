@@ -8,6 +8,7 @@ import * as ReactDOM from 'react-dom';
 import * as Types from './types';
 
 import { Loader } from './LoaderWidget';
+import { Header } from './HeaderWidget';
 import { Title } from './TitleWidget';
 import { CreateGame } from './CreateGameWidget';
 import { PublicGamesList } from './PublicGamesListWidget';
@@ -31,33 +32,53 @@ import registerServiceWorker from './registerServiceWorker';
 // Initial data structure
 const initialBattleship: Types.Battleship = {
   mode: 'pre',
-  api: 'http://localhost:9000/api/games'
+  api: `${window.location.protocol}//${window.location.host}/api/games`
 }
 
+// Utils
 const getGameId: () => string = () => R.ifElse(
   R.allPass([R.compose(R.lt(2), R.length), R.compose(R.equals("games"), R.view(R.lensIndex(1)))]),
   path => path[2],
   () => ''
 )(window.location.pathname.split('/'));
+
 const getSessionId: () => string = () => R.ifElse(
   R.allPass([R.compose(R.lt(2), R.length), R.compose(R.equals("games"), R.view(R.lensIndex(1)))]),
   path => path[3],
   () => ''
 )(window.location.pathname.split('/'));
 
-// Utils
 const checkMode: (a:Array<string>) => (g:Types.Battleship) => boolean = 
   a => R.compose(R.flip(R.contains)(a), R.view(R.lensProp('mode')));
 
-//'pre'|'init'|'create'|'join'|'loading'|'game'|'make_public'
+const generateGameTitle: (g:Types.Game) => string = g => ({
+  notready: 'Waiting for players!',
+  config: 'Will start soon!',
+  owner: g.player ? g.owner.name + ' vs ' + g.player.name : 'Battleship Game',
+  player: g.player ? g.owner.name + ' vs ' + g.player.name : 'Battleship Game',
+  owner_win: g.owner.name + ' won!',
+  palyer_win: g.player ? g.player.name + ' won!' : 'Battleship Game',
+}[g.turn]);
+
 const generateTitle: (b:Types.Battleship) => string = b => ({
   pre: "Battleship Game",
   init: "Battleship Game",
   create: "Battleship Game",
   join: "Battleship Game",
-  game: b.game && b.game.player ? b.game.owner.name + " vs " + b.game.player.name : 'Battleship Game',
-  make_public: b.game && b.game.player ? b.game.owner.name + " vs " + b.game.player.name : 'Battleship Game',
+  game: b.game ? generateGameTitle(b.game) : 'Battleship Game',
+  make_public: b.game ? generateGameTitle(b.game) : 'Battleship Game',
 }[b.mode]);  
+
+const currentRulesId: (b:Types.Battleship) => string = 
+  R.ifElse(R.compose(R.compose(R.not, R.either(R.isEmpty, R.isNil), R.view(R.lensProp('game')))), 
+    x => x.game.rules,
+    _ => ''
+  );
+
+const currentRules: (b:Types.Battleship) => Types.Rule = R.ifElse(R.compose(R.isNil, R.view(R.lensProp('game'))),
+  _ => undefined,
+  x => R.find(R.propEq('id', currentRulesId(x)))(x.rules)
+);
 
 // Elements
 const empty: (_:any) => React.ReactElement<any> = _ => <React.Fragment />;
@@ -68,8 +89,17 @@ const loader: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
   _ => <React.Fragment />
 );
 
+const header: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
+  checkMode(['game', 'make_public']),
+  x => <Header close={closeGame(x)}
+               rules={currentRules(x)}
+               game={x.game}
+               makePublic={openMakePublicPopup(x)}/>,
+  _ => <React.Fragment />
+);
+
 const title: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
-  checkMode(['init', 'join', 'create']),
+  checkMode(['init', 'join', 'create', 'game', 'make_public']),
   x => <Title text={generateTitle(x)}/>,
   _ => <React.Fragment />
 );
@@ -237,11 +267,20 @@ const popupChangeMessage: (battle:Types.Battleship) => (e:React.FormEvent<HTMLTe
 const popupChangeRules: (battle:Types.Battleship) => (e:React.FormEvent<HTMLSelectElement>) => any = 
   battle => e => render(Object.assign(battle, {popupRules: e.currentTarget.value, popupError: ''}));
 
+const closeGame: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
+  battle => _ => render(Object.assign(battle, {mode: 'init'}));
+
+const openMakePublicPopup: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
+  battle => _ => battle.gameid && render(Object.assign(battle, {mode: 'make_public'}));
+
+const closeMakePublicPopup: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
+  battle => _ => render(Object.assign(battle, {mode: 'game'}));
+
 //Render. Should be very simple.
 const render = (game: Types.Battleship) => 
   ReactDOM.render(R.reduce(concat, Comp(empty), R.map(Comp, 
     [
-//      header, 
+      header, 
       title,
       creategame,
       publicgames,

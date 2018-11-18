@@ -18,3 +18,9 @@ cabal run --p 9000
 ```
   
 In browser: `http://localhost:9000/`
+
+## SSL
+
+In case you want to use HTTPS:  
+After `cabal install` run: `ghc-pkg unregister -f snap-server` and then `./prepare_with_ssl.sh`. it will create ssl keys and build snap with `-fopenssl` option.
+To run server `./run_ssl.sh` and then in browser: `https://localhost:9443/`  

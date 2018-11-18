@@ -5,7 +5,7 @@ import * as Types from '../types';
 import { Comp, concat } from '../Utils';
 
 import styles from './CreateGamePopup.scss';
-import './back.png';
+import '../assets/back.png';
 
 const formatRules: (s:any) => {__html: string} = s => ({__html: s.replace(/\n/g, '<br/>')});
 

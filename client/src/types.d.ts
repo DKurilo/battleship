@@ -43,7 +43,7 @@ export type Person = {
 }
 export type Game = {
   rules: string;
-  turn: 'notready'|'owner'|'player'|'owner_win'|'palyer_win';
+  turn: 'notready'|'config'|'owner'|'player'|'owner_win'|'palyer_win';
   you: 'owner'|'player'|'guest';
   game: string;
   message: string;

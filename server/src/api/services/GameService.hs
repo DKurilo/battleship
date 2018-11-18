@@ -799,7 +799,7 @@ fillRights pipe mongoDb game session = do
                                        _ -> False
           guests <- try (BS.look "guests" g) :: IO (Either SomeException BS.Value)
           let isguest = case guests of 
-                Right (BS.Array ga) -> and $ fmap (\gt -> 
+                Right (BS.Array ga) -> or $ fmap (\gt -> 
                               (case gt of (BS.Doc dg) -> (T.unpack (BS.at "session" dg)) == sess
                                           _ -> False)) ga
                 _ -> False
