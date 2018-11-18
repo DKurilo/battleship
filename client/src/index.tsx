@@ -14,6 +14,8 @@ import { CreateGame } from './CreateGameWidget';
 import { PublicGamesList } from './PublicGamesListWidget';
 import { JoinPopup } from './JoinPopupWidget';
 import { CreateGamePopup } from './CreateGamePopupWidget';
+import { MakeGamePublicPopup } from './MakeGamePublicPopupWidget';
+import { AreYouSurePopup } from './AreYouSurePopupWidget';
 import { Footer } from './FooterWidget';
 import { Comp, concat } from './Utils';
 
@@ -67,6 +69,7 @@ const generateTitle: (b:Types.Battleship) => string = b => ({
   join: "Battleship Game",
   game: b.game ? generateGameTitle(b.game) : 'Battleship Game',
   make_public: b.game ? generateGameTitle(b.game) : 'Battleship Game',
+  are_you_sure: b.game ? generateGameTitle(b.game) : 'Battleship Game',
 }[b.mode]);  
 
 const currentRulesId: (b:Types.Battleship) => string = 
@@ -90,8 +93,8 @@ const loader: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
 );
 
 const header: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
-  checkMode(['game', 'make_public']),
-  x => <Header close={closeGame(x)}
+  checkMode(['game', 'make_public', 'are_you_sure']),
+  x => <Header close={openAreYouSurePopup(x)}
                rules={currentRules(x)}
                game={x.game}
                makePublic={openMakePublicPopup(x)}/>,
@@ -99,7 +102,7 @@ const header: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
 );
 
 const title: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
-  checkMode(['init', 'join', 'create', 'game', 'make_public']),
+  checkMode(['init', 'join', 'create', 'game', 'make_public', 'are_you_sure']),
   x => <Title text={generateTitle(x)}/>,
   _ => <React.Fragment />
 );
@@ -132,15 +135,32 @@ const joinpopup: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
 const creategamepopup: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
   R.whereEq({mode: 'create'}),
   x => <CreateGamePopup close={closeCreateGamePopup(x)} 
-                  create={createGame(x)}
-                  changeName={popupChangeName(x)}
-                  changeMessage={popupChangeMessage(x)}
-                  changeRules={popupChangeRules(x)}
-                  name={x.popupName}
-                  message={x.popupMessage}
-                  error={x.popupError}
-                  rules={x.popupRules}
-                  rulessets={x.rules}/>,
+                        create={createGame(x)}
+                        changeName={popupChangeName(x)}
+                        changeMessage={popupChangeMessage(x)}
+                        changeRules={popupChangeRules(x)}
+                        name={x.popupName}
+                        message={x.popupMessage}
+                        error={x.popupError}
+                        rules={x.popupRules}
+                        rulessets={x.rules}/>,
+  _ => <React.Fragment />
+);
+
+const makepublicpopup: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
+  R.whereEq({mode: 'make_public'}),
+  x => <MakeGamePublicPopup close={closeMakePublicPopup(x)} 
+                            makepublic={makeGamePublic(x)}
+                            changeMessage={popupChangeMessage(x)}
+                            message={x.popupMessage}
+                            error={x.popupError}/>,
+  _ => <React.Fragment />
+);
+
+const areyousurepopup: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
+  R.whereEq({mode: 'are_you_sure'}),
+  x => <AreYouSurePopup close={closeAreYouSurePopup(x)} 
+                        closeGame={closeGame(x)}/>,
   _ => <React.Fragment />
 );
 
@@ -238,21 +258,21 @@ const createGame: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElemen
 
 const renderGame: (battle:Types.Battleship) => any = 
   battle => ajax.getJSON(`${battle.api}/${battle.gameid}/${battle.session}`).pipe(
-    tap(_ => R.when(checkMode(['game', 'make_public']), b => 
+    tap(_ => R.when(checkMode(['game', 'make_public', 'are_you_sure']), b => 
       of(1).pipe(delay(1000)).subscribe(x=>renderGame(b)))(battle))
   ).subscribe(
     game => render(Object.assign(battle, {game: game})),
-    _ => R.when(checkMode(['game', 'make_public']), b => 
+    _ => R.when(checkMode(['game', 'make_public', 'are_you_sure']), b => 
       of(1).pipe(delay(1000)).subscribe(x=>renderGame(b)))(battle)
   );
 
 const renderChat: (battle:Types.Battleship) => any =
   battle => ajax.getJSON(`${battle.api}/${battle.gameid}/${battle.session}/chat`).pipe(
-    tap(_ => R.when(checkMode(['game', 'make_public']), b => 
+    tap(_ => R.when(checkMode(['game', 'make_public', 'are_you_sure']), b => 
       of(1).pipe(delay(1000)).subscribe(x=>renderChat(b)))(battle))
   ).subscribe(
     chat => render(Object.assign(battle, {chat: chat})),
-    _ => R.when(checkMode(['game', 'make_public']), b => 
+    _ => R.when(checkMode(['game', 'make_public', 'are_you_sure']), b => 
       of(1).pipe(delay(1000)).subscribe(x=>renderChat(b)))(battle)
   );
 
@@ -268,13 +288,39 @@ const popupChangeRules: (battle:Types.Battleship) => (e:React.FormEvent<HTMLSele
   battle => e => render(Object.assign(battle, {popupRules: e.currentTarget.value, popupError: ''}));
 
 const closeGame: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
-  battle => _ => render(Object.assign(battle, {mode: 'init'}));
+  battle => _ => renderInit(Object.assign(battle, {mode: 'init'}));
 
 const openMakePublicPopup: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
   battle => _ => battle.gameid && render(Object.assign(battle, {mode: 'make_public'}));
 
 const closeMakePublicPopup: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
   battle => _ => render(Object.assign(battle, {mode: 'game'}));
+
+const makeGamePublic: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
+  R.ifElse( R.allPass(
+      R.map(x => R.compose(R.not, R.either(R.isEmpty, R.isNil), R.view(R.lensProp(x))),
+            ['game', 'gameid', 'session', 'popupMessage'])),
+    b => (_:React.MouseEvent<HTMLDivElement>) => ajax({
+      url: `${b.api}/${b.gameid}/${b.session}/setpublic`,
+      method: "POST",
+      body: {
+        message: b.popupMessage,
+      },
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    }).subscribe(
+      r => render(Object.assign(b, {mode: 'game'})),
+      _ => render(Object.assign(b, {popupError: 'Something goes wrong. Try again later.' }))
+    ),
+    b => (_:React.MouseEvent<HTMLDivElement>) => 
+      render(Object.assign(b, {popupError: 'Message can\'t be empty.' }))
+  );
+
+const openAreYouSurePopup: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
+  battle => _ => battle.gameid && render(Object.assign(battle, {mode: 'are_you_sure'}));
+
+const closeAreYouSurePopup = closeMakePublicPopup;
 
 //Render. Should be very simple.
 const render = (game: Types.Battleship) => 
@@ -286,7 +332,8 @@ const render = (game: Types.Battleship) =>
       publicgames,
       joinpopup,
       creategamepopup,
-//      makepublicpopup,
+      makepublicpopup,
+      areyousurepopup,
 //      currentcell,
 //      mysea,
 //      enemysea,

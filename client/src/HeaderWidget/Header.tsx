@@ -4,18 +4,17 @@ import { of } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import * as Types from '../types';
 
-import { Comp, concat } from '../Utils';
+import { Comp } from '../Utils';
 
 import styles from './Header.scss';
 import '../assets/back.png';
 
-const innerState:{el?: (el:Element)} = { };
+const innerState:{el?: Element} = {};
 
 const getLink:(gid: string) => string = gid => `${window.location.protocol}//${window.location.host}/games/${gid}`;
 
 const formatRules: (s:string) => {__html: string} = s => ({__html: s.replace(/\n/g, '<br/>')});
 
-// 'notready'|'config'|'owner'|'player'|'owner_win'|'palyer_win'
 const getState: (t:string) => string = t => ({
   notready: 'config',
   config: 'config',

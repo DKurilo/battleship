@@ -1,4 +1,4 @@
-:local(.MakeGamePublicPopup) {
+:local(.AreYouSurePopup) {
   position: fixed;
   top: 0;
   left: 0;
@@ -33,14 +33,6 @@
     .block{
       margin: 0 0 10px;
       width: 200px;
-    }
-    .message {
-      width: 100%;
-      height: 70px;
-    }
-    .error {
-      font: 10px/12px sans-serif;
-      color: red;
     }
     .button {
       display: inline-block;

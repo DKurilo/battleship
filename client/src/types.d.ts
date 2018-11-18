@@ -55,7 +55,7 @@ export type Game = {
 }
 export type Battleship = {
   rules?: Array<Rule>;
-  mode: 'pre'|'init'|'create'|'join'|'loading'|'game'|'make_public';
+  mode: 'pre'|'init'|'create'|'join'|'loading'|'game'|'make_public'|'are_you_sure';
   gameid?: string;
   session?: string;
   init?: Array<PublicGame>;

@@ -84,7 +84,8 @@ getPublicGamesList mongoHost mongoUser mongoPass mongoDb = do
   let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse $ setHeader "Content-Type" "application/json"
   time <- liftIO $ round <$> getPOSIXTime
-  let action = rest =<< MQ.find (MQ.select ["date" =: ["$gte" =: time - gemeTimeout], "public" =: True] "games")
+  let action = rest =<< MQ.find (MQ.select ["date" =: ["$gte" =: time - gemeTimeout], "public" =: True] "games") 
+                                {MQ.sort = ["date" =: -1]}
   games <- a $ action
   writeLBS . encode $ fmap (\d -> PublicGame (BS.at "game" d) (BS.at "name" (BS.at "owner" d)) (BS.at "message" d) (BS.at "rules" d) (getTurn $ BS.at "turn" d)) games
   liftIO $ closeConnection pipe
