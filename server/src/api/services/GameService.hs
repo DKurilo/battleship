@@ -303,7 +303,7 @@ getStatus mongoHost mongoUser mongoPass mongoDb = do
       mbownermap <- try (BS.look "map" owner) :: IO (Either SomeException BS.Value)
       let ownermap = case mbownermap of 
             Right (BS.Array m) -> [(case mbl of
-              BS.Array l -> [(case mbc of BS.Float c -> head $ [c | c > 1 || you == "owner"] ++ [0] 
+              BS.Array l -> [(case mbc of BS.Int32 c -> head $ [c | (c > 1 || you == "owner")] ++ [0] 
                                           _ -> 0) | mbc <- l]
               _ -> []) | mbl <- m]
             _ -> []
@@ -314,7 +314,7 @@ getStatus mongoHost mongoUser mongoPass mongoDb = do
               mbplayermap <- try (BS.look "map" player) :: IO (Either SomeException BS.Value)
               let playermap = case mbplayermap of 
                     Right (BS.Array m) -> [(case mbl of
-                      BS.Array l -> [(case mbc of BS.Float c -> head $ [c | c > 1 || you == "player"] ++ [0] 
+                      BS.Array l -> [(case mbc of BS.Int32 c -> head $ [c | c > 1 || you == "player"] ++ [0] 
                                                   _ -> 0) | mbc <- l]
                       _ -> []) | mbl <- m]
                     _ -> []
@@ -585,7 +585,7 @@ shoot mongoHost mongoUser mongoPass mongoDb = do
                                  "game" =: game
                                ]::Selector,
                                [
-                                 "$set" =: [(T.pack . concat $ [enemy, ".map.", show y,".",show x]) =: cell],
+                                 "$set" =: [(T.pack . concat $ [enemy, ".map.", show x, ".", show y]) =: cell],
                                  "$push" =: ["turn" =: turn]
                                ]::Document,
                                [ ]::[UpdateOption]
@@ -945,14 +945,14 @@ isIntersected m1 m2 = or . concat $ [zipWith (\a b -> (a * b) > 0) x y | (x, y) 
 ---------------------------------
 -- check shot
 isShotSane :: [[Int]] -> Shot -> Bool
-isShotSane sm (Shot x y) = length sm > y && ((drop x) . (head . drop y) $ sm) /= []
+isShotSane sm (Shot x y) = length sm > x && ((drop y) . (head . drop x) $ sm) /= []
 
 getCell :: [[Int]] -> Shot -> Int
-getCell sm (Shot x y) = (head . drop x) . (head . drop y) $ sm
+getCell sm (Shot x y) = (head . drop y) . (head . drop x) $ sm
 
 isSink :: [[Int]] -> Shot -> Bool
-isSink m (Shot x y) = checkLine x (head . (drop y) $ m)
-                      && checkLine y (head . (drop x) $ (transpose m))
+isSink m (Shot x y) = checkLine y (head . (drop x) $ m)
+                      && checkLine x (head . (drop y) $ (transpose m))
 
 checkLine :: Int -> [Int] -> Bool
 checkLine x xs = and $ (checkPartOfLine $ drop (x+1) $ xs) ++ 

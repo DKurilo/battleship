@@ -15,13 +15,13 @@ const getLink:(gid: string) => string = gid => `${window.location.protocol}//${w
 
 const formatRules: (s:string) => {__html: string} = s => ({__html: s.replace(/\n/g, '<br/>')});
 
-const getState: (t:string) => string = t => ({
+const getState: (o:string) => (p:string) => (t:string) => string = o => p => t => ({
   notready: 'config',
   config: 'config',
-  owner: 'play',
-  player: 'play',
-  owner_win: 'finished',
-  palyer_win: 'finished',
+  owner: `${o}'s turn`,
+  player: `${p}'s turn`,
+  owner_win: `${o} won!`,
+  player_win: `${p} won!`,
 }[t]);
 
 const setLinkElement:(el:HTMLInputElement) => any  =
@@ -52,7 +52,9 @@ export const Header = (props:{close: (e:React.MouseEvent<HTMLDivElement>) => any
         <div className="rules">{props.rules.name}</div>
         <div className="rules-description" dangerouslySetInnerHTML={formatRules(props.rules.rules)} />
       </div>
-      <div className="state">{getState(props.game.turn)}</div>
+      <div className="state">{
+        getState(props.game.owner.name)(props.game.player ? props.game.player.name : '')(props.game.turn)
+      }</div>
       <div className="copylink">
         <input type="text" className="link" ref={setLinkElement} value={getLink(props.game.game)} readOnly={true}/>
         <div className="copy" onClick={copyLink}>Copy</div>

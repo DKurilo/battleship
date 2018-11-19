@@ -15,7 +15,7 @@ import './miss.png';
 import './ship.png';
 import './wait.png';
 
-const classByVal = ['empty', 'ship', 'hit', 'miss', 'wait'];
+const classByVal = ['empty', 'ship', 'miss', 'hit', 'wait'];
 
 const bottom: (p: {you: string,
                    message: string
