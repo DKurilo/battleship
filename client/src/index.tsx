@@ -7,16 +7,20 @@ import * as ReactDOM from 'react-dom';
 
 import * as Types from './types';
 
-import { Loader } from './LoaderWidget';
-import { Header } from './HeaderWidget';
-import { Title } from './TitleWidget';
-import { CreateGame } from './CreateGameWidget';
-import { PublicGamesList } from './PublicGamesListWidget';
-import { JoinPopup } from './JoinPopupWidget';
-import { CreateGamePopup } from './CreateGamePopupWidget';
-import { MakeGamePublicPopup } from './MakeGamePublicPopupWidget';
 import { AreYouSurePopup } from './AreYouSurePopupWidget';
+import { Bottom } from './BottomWidget';
+import { Chat } from './ChatWidget';
+import { CreateGamePopup } from './CreateGamePopupWidget';
+import { CreateGame } from './CreateGameWidget';
 import { Footer } from './FooterWidget';
+import { Guests } from './GuestsWidget';
+import { Header } from './HeaderWidget';
+import { JoinPopup } from './JoinPopupWidget';
+import { Loader } from './LoaderWidget';
+import { MakeGamePublicPopup } from './MakeGamePublicPopupWidget';
+import { PublicGamesList } from './PublicGamesListWidget';
+import { Sea } from './SeaWidget';
+import { Title } from './TitleWidget';
 import { Comp, concat } from './Utils';
 
 import './index.scss';
@@ -37,15 +41,23 @@ const initialBattleship: Types.Battleship = {
   api: `${window.location.protocol}//${window.location.host}/api/games`
 }
 
+const X:number = 10;
+const Y:number = 10;
+
 // Utils
+const initSea: (x: number, y: number) => Types.Sea = (x, y) => Array(y).fill(0).map(_ => Array(x).fill(0));
+
+
+const emptySea:Types.Sea = initSea(X, Y);
+
 const getGameId: () => string = () => R.ifElse(
-  R.allPass([R.compose(R.lt(2), R.length), R.compose(R.equals("games"), R.view(R.lensIndex(1)))]),
+  R.allPass([R.compose(R.lt(2), R.length), R.compose(R.equals('games'), R.view(R.lensIndex(1)))]),
   path => path[2],
   () => ''
 )(window.location.pathname.split('/'));
 
 const getSessionId: () => string = () => R.ifElse(
-  R.allPass([R.compose(R.lt(2), R.length), R.compose(R.equals("games"), R.view(R.lensIndex(1)))]),
+  R.allPass([R.compose(R.lt(2), R.length), R.compose(R.equals('games'), R.view(R.lensIndex(1)))]),
   path => path[3],
   () => ''
 )(window.location.pathname.split('/'));
@@ -63,10 +75,10 @@ const generateGameTitle: (g:Types.Game) => string = g => ({
 }[g.turn]);
 
 const generateTitle: (b:Types.Battleship) => string = b => ({
-  pre: "Battleship Game",
-  init: "Battleship Game",
-  create: "Battleship Game",
-  join: "Battleship Game",
+  pre: 'Battleship Game',
+  init: 'Battleship Game',
+  create: 'Battleship Game',
+  join: 'Battleship Game',
   game: b.game ? generateGameTitle(b.game) : 'Battleship Game',
   make_public: b.game ? generateGameTitle(b.game) : 'Battleship Game',
   are_you_sure: b.game ? generateGameTitle(b.game) : 'Battleship Game',
@@ -82,6 +94,24 @@ const currentRules: (b:Types.Battleship) => Types.Rule = R.ifElse(R.compose(R.is
   _ => undefined,
   x => R.find(R.propEq('id', currentRulesId(x)))(x.rules)
 );
+
+const setWait: (s: Types.Sea) => (x:number) => (y:number) => Types.Sea = 
+  s => x => y => s.map((v, x1) => 
+      x === x1 ? v.map((v1, y1) => 
+        y === y1 ? 4 : v1) : v)
+
+const seaOwner = {
+  right: {
+    player: 'owner',
+    owner: 'player',
+    guest: 'player'
+  },
+  left: {
+    player: 'player',
+    owner: 'owner',
+    guest: 'owner'
+  }
+};
 
 // Elements
 const empty: (_:any) => React.ReactElement<any> = _ => <React.Fragment />;
@@ -164,6 +194,47 @@ const areyousurepopup: (g:Types.Battleship) => React.ReactElement<any> = R.ifEls
   _ => <React.Fragment />
 );
 
+const bottom: (els:Array<Types.TabItem>) => (g:Types.Battleship) => React.ReactElement<any> = 
+  els => R.ifElse(
+    checkMode(['game', 'make_public', 'are_you_sure']),
+    x => <Bottom elements={els} battle={x}/>,
+    _ => <React.Fragment />
+  );
+
+const chat: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
+    checkMode(['game', 'make_public', 'are_you_sure']),
+    x => <Chat messages={x.chat}
+               sendMessage={sendChatMessage(x)}
+               changeMessage={changeChatMessage(x)}/>,
+    _ => <React.Fragment />
+  );
+
+const guests: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
+    checkMode(['game', 'make_public', 'are_you_sure']),
+    x => <Guests guests={x.game.guests} owner={x.game.owner} player={x.game.player}/>,
+    _ => <React.Fragment />
+  );
+
+const sea: (s:'right'|'left') => (g:Types.Battleship) => React.ReactElement<any> = s => R.ifElse(
+    checkMode(['game', 'make_public', 'are_you_sure']),
+    x => <Sea you={x.game.you}
+              turn={x.game.turn}
+              sendMap={x.game.you!=='guest' && s==='left' && (x.game.turn === 'notready' || x.game.turn === 'config') ? 
+                         sendMySea(x):null}
+              changeMap={x.game.you!=='guest' && s==='left' && (x.game.turn === 'notready' || x.game.turn === 'config') ? 
+                         changeMySea(x):null}
+              shoot={x.game.you!=='guest' && s==='right' && x.game.turn === x.game.you ? shoot(x) : null}
+              sea={x.game.you!=='guest' && s==='left' && (x.game.turn === 'notready' || x.game.turn === 'config') ?
+                   x.initSea : (x.game[seaOwner[s][x.game.you]] && x.game[seaOwner[s][x.game.you]].map ? 
+                   x.game[seaOwner[s][x.game.you]].map : emptySea)}
+              name={x.game[seaOwner[s][x.game.you]]?x.game[seaOwner[s][x.game.you]].name:''}
+              mouseEnter={mouseEnter(x)(s)}
+              mouseLeave={mouseLeave(x)(s)}
+              selected={x.currentBoard && x.currentBoard === s}
+              selectedPos={x.currentPos}/>,
+    _ => <React.Fragment />
+  );
+
 const footer: (g:Types.Battleship) => React.ReactElement<any> = g => <Footer />;
 
 // Actions
@@ -201,7 +272,7 @@ const joinGame: (battle:Types.Battleship) => (r:string) => (_:React.MouseEvent<H
             ['popupName', 'popupMessage', 'join'])),
     b => (r:string) => (_:React.MouseEvent<HTMLDivElement>) => ajax({
       url: `${b.api}/${b.join.game}/connect/${r}`,
-      method: "POST",
+      method: 'POST',
       body: {
         name: b.popupName,
         message: b.popupMessage,
@@ -210,11 +281,13 @@ const joinGame: (battle:Types.Battleship) => (r:string) => (_:React.MouseEvent<H
         'Content-Type': 'application/json',
       }
     }).pipe(
-      tap(_ => render(Object.assign(b, {mode: "loading"})))
+      tap(_ => render(Object.assign(b, {mode: 'loading'})))
     ).subscribe (
       r => of(1).pipe(
-        tap(_ => renderGame(Object.assign(b, {mode: 'game', gameid: r.response.game, session: r.response.session }))),
-        tap(_ => renderChat(Object.assign(b, {mode: 'game', gameid: r.response.game, session: r.response.session })))
+        tap(_ => renderGame(Object.assign(b, {
+          mode: 'game', gameid: r.response.game, session: r.response.session, bottom: 0, initSea: initSea(X, Y)
+        }))),
+        tap(_ => renderChat(b))
       ).subscribe(),
       _ => renderInit(Object.assign(b, {mode: 'join', popupError: 'Something goes wrong. Try again later.'}))
     ),
@@ -234,7 +307,7 @@ const createGame: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElemen
             ['popupName', 'popupMessage', 'popupRules'])),
     b => (_:React.MouseEvent<HTMLDivElement>) => ajax({
       url: b.api,
-      method: "POST",
+      method: 'POST',
       body: {
         name: b.popupName,
         message: b.popupMessage,
@@ -244,11 +317,13 @@ const createGame: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElemen
         'Content-Type': 'application/json',
       }
     }).pipe(
-      tap(_ => render(Object.assign(b, {mode: "loading"})))
+      tap(_ => render(Object.assign(b, {mode: 'loading'})))
     ).subscribe (
       r => of(1).pipe(
-        tap(_ => renderGame(Object.assign(b, {mode: 'game', gameid: r.response.game, session: r.response.session }))),
-        tap(_ => renderChat(Object.assign(b, {mode: 'game', gameid: r.response.game, session: r.response.session })))
+        tap(_ => renderGame(Object.assign(b, {
+          mode: 'game', gameid: r.response.game, session: r.response.session, bottom: 0, initSea: initSea(X, Y)
+        }))),
+        tap(_ => renderChat(b))
       ).subscribe(),
       _ => renderInit(Object.assign(b, {mode: 'create', popupError: 'Something goes wrong. Try again later.'}))
     ),
@@ -291,7 +366,7 @@ const closeGame: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement
   battle => _ => renderInit(Object.assign(battle, {mode: 'init'}));
 
 const openMakePublicPopup: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
-  battle => _ => battle.gameid && render(Object.assign(battle, {mode: 'make_public'}));
+  battle => _ => battle.gameid && render(Object.assign(battle, {mode: 'make_public', popupMessage: ''}));
 
 const closeMakePublicPopup: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
   battle => _ => render(Object.assign(battle, {mode: 'game'}));
@@ -302,7 +377,7 @@ const makeGamePublic: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivEl
             ['game', 'gameid', 'session', 'popupMessage'])),
     b => (_:React.MouseEvent<HTMLDivElement>) => ajax({
       url: `${b.api}/${b.gameid}/${b.session}/setpublic`,
-      method: "POST",
+      method: 'POST',
       body: {
         message: b.popupMessage,
       },
@@ -322,6 +397,87 @@ const openAreYouSurePopup: (battle:Types.Battleship) => (_:React.MouseEvent<HTML
 
 const closeAreYouSurePopup = closeMakePublicPopup;
 
+const changeMySea: (battle:Types.Battleship) => (x:number) => (y:number) => any =
+  battle => x => y => battle.initSea && battle.initSea[x] && battle.initSea[x][y] ?
+    render(Object.assign(battle, {popupError: '', initSea: battle.initSea.map((v, x1) => 
+      x === x1 ? v.map((v1, y1) => 
+        y === y1 ? (v1 === 0 ? 1 : 0) : v1) : v)})) : render(battle);
+
+const sendMySea: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
+  R.ifElse( R.allPass(
+      R.map(x => R.compose(R.not, R.either(R.isEmpty, R.isNil), R.view(R.lensProp(x))),
+            ['game', 'gameid', 'session', 'initSea'])),
+    b => (_:React.MouseEvent<HTMLDivElement>) => ajax({
+      url: `${b.api}/${b.gameid}/${b.session}/setmap`,
+      method: 'POST',
+      body: b.initSea,
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    }).subscribe(
+      _ => render(b),
+      m => render(Object.assign(b, {popupError: m }))
+    ),
+    b => (_:React.MouseEvent<HTMLDivElement>) => 
+      render(Object.assign(b, {popupError: 'Something goes wrong!' }))
+  );
+
+const shoot: (battle:Types.Battleship) => (x:number) => (y:number) => (_:React.MouseEvent<HTMLDivElement>) => any = 
+  battle => x => y => _ => of(battle).pipe(
+    tap(R.ifElse(R.compose(R.equals('owner'), R.view(R.lensPath(['game','you']))), 
+      b => render(Object.assign(b, { game: { player: {sea: setWait(b.game.player.sea)(x)(y)}}})),
+      b => render(Object.assign(b, { game: { owner: {sea: setWait(b.game.owner.sea)(x)(y)}}}))))
+  ).subscribe(
+    b => ajax({
+        url: `${b.api}/${b.gameid}/${b.session}/setmap`,
+        method: 'POST',
+        body: {
+          x: x,
+          y: y
+        },
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }).subscribe(
+        r => render(Object.assign(b, {message: r})),
+        r => render(Object.assign(b, {message: r}))
+      )
+  );
+
+const changeChatMessage: (battle:Types.Battleship) => (e:React.FormEvent<HTMLInputElement>) => any = 
+  battle => e => e.currentTarget.value.length <= 140 && 
+                 render(Object.assign(battle, {message: e.currentTarget.value, popupError: ''}));
+
+const sendChatMessage: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
+  R.when( R.allPass(
+      R.map(x => R.compose(R.not, R.either(R.isEmpty, R.isNil), R.view(R.lensProp(x))),
+            ['game', 'gameid', 'session', 'message'])),
+    b => (_:React.MouseEvent<HTMLDivElement>) => ajax({
+      url: `${b.api}/${b.gameid}/${b.session}/chat`,
+      method: 'POST',
+      body: b.message,
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    }).subscribe(r => render(Object.assign(b, {message: ''})))
+  );
+
+const mouseEnter: (b: Types.Battleship) => (board: 'right'|'left') => (x: number) => (y: number) 
+                  => (_:React.MouseEvent<HTMLDivElement>) => any = 
+  b => board => x => y => _ => 
+    render(Object.assign(b, {
+      currentBoard: board,
+      currentPos: {x, y},
+    }));
+
+const mouseLeave: (b: Types.Battleship) => (board: 'right'|'left') => (x: number) => (y: number)
+                  => (_:React.MouseEvent<HTMLDivElement>) => any = 
+  b => board => x => y => _ => 
+  render(Object.assign(b, {
+    currentBoard: undefined,
+    currentPos: undefined,
+  }));
+
 //Render. Should be very simple.
 const render = (game: Types.Battleship) => 
   ReactDOM.render(R.reduce(concat, Comp(empty), R.map(Comp, 
@@ -334,13 +490,9 @@ const render = (game: Types.Battleship) =>
       creategamepopup,
       makepublicpopup,
       areyousurepopup,
-//      currentcell,
-//      mysea,
-//      enemysea,
-//      guestsea('owner'),
-//      guestsea('player'),
-//      sendmessage,
-//      chat,
+      sea('right'),
+      sea('left'),
+      bottom([{name: 'Chat', component: chat} , {name: 'Guests List', component: guests}]),
       footer,
       loader]
   )).fold(game), document.getElementById('root') as HTMLElement);

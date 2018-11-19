@@ -13,9 +13,11 @@ import './label-y.png';
 import './miss.png';
 import './ship.png';
 
+const classByVal = ['empty', 'ship', 'hit', 'miss', 'wait'];
+
 const cell: (i: number) => Types.Box = i => Comp(g =>
   <div 
-    className={'Cell ' + g.line[i] + 
+    className={'Cell ' + classByVal[g.line[i]] + 
                (g.selectedPos === i || g.selected ? ' light' : '') +
                (g.selectedPos === i && g.selected ? ' current' : '') }
     onClick={g.click(i)}
@@ -46,4 +48,5 @@ const sea: (s: Types.Sea) => Types.Box = s => s.reduce((acc, i, x) => acc.concat
       /></div>
   )), Comp(g => <React.Fragment />));
 
-export const Sea = (props:any) => <div className="Sea">{rightLine(props.sea[0]).concat(sea(props.sea)).fold(props)}</div>;
+//export const Sea = (props:any) => <div className="Sea">{rightLine(props.sea[0]).concat(sea(props.sea)).fold(props)}</div>;
+export const Sea = (props:any) => <div className="Sea">Sea</div>;

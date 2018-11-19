@@ -32,7 +32,18 @@ export type Point = {
   x: number;
   y: number;
 };
-export type CState = 'empty'|'miss'|'hit'|'ship'|'wait';
+export type TabItem = {
+  name: string;
+  component: (g:Battleship) => React.ReactElement<any>;
+};
+
+// Map:
+//   0 - empty
+//   1 - ship
+//   2 - miss
+//   3 - hit
+//   4 - wait
+export type CState = 0|1|2|3|4;
 export type SeaLine = Array<CState>;
 export type Sea = Array<SeaLine>;
 export type Person = {
@@ -70,4 +81,6 @@ export type Battleship = {
   popupMessage?: string;
   popupError?: string;
   popupRules?: string;
+  bottom?: number;
+  message?: string;
 }

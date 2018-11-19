@@ -173,6 +173,11 @@ createGame mongoHost mongoUser mongoPass mongoDb rulePath = do
 
 -----------------------
 -- send map
+--   Map:
+--     0 - empty
+--     1 - ship
+--     2 - miss - we don't need it here
+--     3 - hit - we don't need it here
 --   post session id (owner and player can send map), json with map. Only empty or ship on map
 --   POST /api/games/{gameid}/{session}/setmap
 --   [[0,0,0,1,1,0,0...],[...],[...],...]
@@ -543,6 +548,11 @@ connectGameGuest mongoHost mongoUser mongoPass mongoDb = do
 
 ------------------------------
 -- shoot
+--   Map:
+--     0 - empty
+--     1 - ship
+--     2 - miss
+--     3 - hit
 --   post game id, session (only owner and player can shoot and only in ther turn) and coords
 --   POST /api/games/{gameid}/{session}/shoot
 --   {
