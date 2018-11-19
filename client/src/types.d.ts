@@ -52,10 +52,14 @@ export type Person = {
   map?: Sea;
   new?: boolean;
 }
+export type Turn = 'notready'|'config'|'owner'|'player'|'owner_win'|'palyer_win';
+export type Mode = 'pre'|'init'|'create'|'join'|'loading'|'game'|'make_public'|'are_you_sure';
+export type You = 'owner'|'player'|'guest';
+export type BoardType = "right"|"left";
 export type Game = {
   rules: string;
-  turn: 'notready'|'config'|'owner'|'player'|'owner_win'|'palyer_win';
-  you: 'owner'|'player'|'guest';
+  turn: Turn;
+  you: You;
   game: string;
   message: string;
   owner: Person;
@@ -66,14 +70,14 @@ export type Game = {
 }
 export type Battleship = {
   rules?: Array<Rule>;
-  mode: 'pre'|'init'|'create'|'join'|'loading'|'game'|'make_public'|'are_you_sure';
+  mode: Mode;
   gameid?: string;
   session?: string;
   init?: Array<PublicGame>;
   join?: PublicGame;
   game?: Game;
   initSea?: Sea;
-  currentBoard?: "my"|"enemy";
+  currentBoard?: BoardType;
   currentPos?: Point;
   chat?: Array<Message>;
   api: string;

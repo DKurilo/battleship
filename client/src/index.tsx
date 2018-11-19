@@ -225,13 +225,15 @@ const sea: (s:'right'|'left') => (g:Types.Battleship) => React.ReactElement<any>
                          changeMySea(x):null}
               shoot={x.game.you!=='guest' && s==='right' && x.game.turn === x.game.you ? shoot(x) : null}
               sea={x.game.you!=='guest' && s==='left' && (x.game.turn === 'notready' || x.game.turn === 'config') ?
-                   x.initSea : (x.game[seaOwner[s][x.game.you]] && x.game[seaOwner[s][x.game.you]].map ? 
-                   x.game[seaOwner[s][x.game.you]].map : emptySea)}
-              name={x.game[seaOwner[s][x.game.you]]?x.game[seaOwner[s][x.game.you]].name:''}
-              mouseEnter={mouseEnter(x)(s)}
-              mouseLeave={mouseLeave(x)(s)}
+                   x.initSea : (x.game[seaOwner[s][x.game.you]] && x.game[seaOwner[s][x.game.you]].map &&
+                   x.game[seaOwner[s][x.game.you]].map.length > 0 ? x.game[seaOwner[s][x.game.you]].map : emptySea)}
+              name={x.game[seaOwner[s][x.game.you]]&&x.game[seaOwner[s][x.game.you]].name?
+                    x.game[seaOwner[s][x.game.you]].name:''}
+              enter={mouseEnter(x)(s)}
+              leave={mouseLeave(x)(s)}
               selected={x.currentBoard && x.currentBoard === s}
-              selectedPos={x.currentPos}/>,
+              selectedPos={x.currentPos}
+              message={x.message}/>,
     _ => <React.Fragment />
   );
 
@@ -397,8 +399,8 @@ const openAreYouSurePopup: (battle:Types.Battleship) => (_:React.MouseEvent<HTML
 
 const closeAreYouSurePopup = closeMakePublicPopup;
 
-const changeMySea: (battle:Types.Battleship) => (x:number) => (y:number) => any =
-  battle => x => y => battle.initSea && battle.initSea[x] && battle.initSea[x][y] ?
+const changeMySea: (battle:Types.Battleship) => (x:number) => (y:number) => (_:React.MouseEvent<HTMLDivElement>) => any =
+  battle => x => y => _ => battle.initSea && battle.initSea[x] && battle.initSea[x][y] !== undefined ?
     render(Object.assign(battle, {popupError: '', initSea: battle.initSea.map((v, x1) => 
       x === x1 ? v.map((v1, y1) => 
         y === y1 ? (v1 === 0 ? 1 : 0) : v1) : v)})) : render(battle);
@@ -490,8 +492,8 @@ const render = (game: Types.Battleship) =>
       creategamepopup,
       makepublicpopup,
       areyousurepopup,
-      sea('right'),
       sea('left'),
+      sea('right'),
       bottom([{name: 'Chat', component: chat} , {name: 'Guests List', component: guests}]),
       footer,
       loader]
