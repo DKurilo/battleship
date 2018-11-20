@@ -1,5 +1,52 @@
 :local(.Chat) {
   width: 100%;
-  margin: 50px 0 100px;
   text-align: left;
+  font: 12px/14px sans-serif;
+  .message-box {
+    padding: 10px;
+    background: rgba(#c9ddf2,.1);
+    border-radius: 10px;
+    border: 1px solid rgba(#c9ddf2,.2);
+    box-sizing: border-box;
+    margin-bottom: 7px;
+    .message {
+      display: inline-block;
+      width: calc(100% - 100px);
+      margin-right: 10px;
+    }
+    .send {
+      padding: 5px 10px;
+      border-radius: 7px;
+      background: rgba(#5784bf, 1);
+      box-shadow: 0 3px 0 0 rgba(#000000,.1),inset 0 -3px 0 0 rgba(#000000,.1);
+      cursor: pointer;
+      transition: background .8s linear .2s;
+      color: white;
+      margin: 0;
+      display: inline-block;
+      &:hover {
+        background: rgba(#5784bf, .8);
+      }
+    }
+  }
+  .chat-box {
+    position: relative;
+    height: 300px;
+    overflow: scroll;
+    .chat-message {
+      padding: 3px 10px;
+      background: rgba(#c9ddf2,.1);
+      border-radius: 5px;
+      border: 1px solid rgba(#c9ddf2,.2);
+      box-sizing: border-box;
+      margin-bottom: 1px;
+      .name {
+        display: inline-block;
+        font-weight: bold;
+      }
+      .text {
+        display: inline-block;
+      }
+    }
+  }
 }

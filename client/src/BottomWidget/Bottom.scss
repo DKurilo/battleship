@@ -1,5 +1,28 @@
 :local(.Bottom) {
   width: 100%;
-  margin: 50px 0 100px;
+  position: relative;
+  margin: 20px 0 20px;
   text-align: left;
+  font: 12px/14px sans-serif;
+  .top-line {
+    margin-bottom: 10px;
+    .element {
+      margin: 0 2px 0 2px;
+      border-radius: 7px 7px 0 0;
+      border: 1px solid rgba(#c9ddf2,.4);
+      box-shadow: 0 -2px 0 rgba(#c9ddf2,.3) inset,0 0 1px rgba(#000000,.1);
+      background: rgba(#c9ddf2,.1);
+      cursor: pointer;
+      color: #c9ddf2;
+      padding: 10px 20px;
+      display: inline-block;
+      font-weight: bold;
+      &.active {
+        border-bottom: none;
+        box-shadow: none;
+        background: rgba(#c9ddf2,.03);
+        color: #d16b00;
+      }
+    }
+  }
 }

@@ -1,5 +1,25 @@
 :local(.Guests) {
   width: 100%;
-  margin: 50px 0 100px;
   text-align: left;
+  .player, .guest {
+    margin: 5px 0;
+    padding: 10px;
+    border: 1px solid rgba(#c9ddf2,.2);
+    background: rgba(#c9ddf2,.1);
+    border-radius: 10px;
+    position: relative;
+    font: 12px/14px sans-serif;
+    transition: background .4s linear, border-color .4s linear, color .4s linear;
+    &:hover{
+      background: rgba(#c9ddf2,.3);
+      border-color: rgba(#c9ddf2,.4);
+      color: #777;
+    }
+    .name {
+      font-weight: bold;
+    }
+    .message {
+
+    }
+  }
 }

@@ -44,9 +44,11 @@ const makePublicButton: (p: any) => React.ReactElement<any> = R.ifElse(R.view(R.
 export const Header = (props:{close: (e:React.MouseEvent<HTMLDivElement>) => any,
                               rules: Types.Rule,
                               game: Types.Game,
-                              makePublic: (e:React.MouseEvent<HTMLDivElement>) => any}) => 
+                              makePublic: (e:React.MouseEvent<HTMLDivElement>) => any,
+                              session:string}) => 
   <div className={styles.Header}>
     <div className="close" onClick={props.close} />
+    <div className="youare">You are: <b>{props.game.yourname}</b></div>
     <div className="right">
       <div className="rules-box">
         <div className="rules">{props.rules.name}</div>

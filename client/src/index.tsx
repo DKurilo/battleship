@@ -122,12 +122,13 @@ const loader: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
   _ => <React.Fragment />
 );
 
-const header: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
+const header: (b:Types.Battleship) => React.ReactElement<any> = R.ifElse(
   checkMode(['game', 'make_public', 'are_you_sure']),
   x => <Header close={openAreYouSurePopup(x)}
                rules={currentRules(x)}
                game={x.game}
-               makePublic={openMakePublicPopup(x)}/>,
+               makePublic={openMakePublicPopup(x)}
+               session={x.session}/>,
   _ => <React.Fragment />
 );
 
@@ -197,7 +198,7 @@ const areyousurepopup: (g:Types.Battleship) => React.ReactElement<any> = R.ifEls
 const bottom: (els:Array<Types.TabItem>) => (g:Types.Battleship) => React.ReactElement<any> = 
   els => R.ifElse(
     checkMode(['game', 'make_public', 'are_you_sure']),
-    x => <Bottom elements={els} battle={x}/>,
+    x => <Bottom elements={els} battle={x} change={changeBottomIndex(x)}/>,
     _ => <React.Fragment />
   );
 
@@ -205,7 +206,8 @@ const chat: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
     checkMode(['game', 'make_public', 'are_you_sure']),
     x => <Chat messages={x.chat}
                sendMessage={sendChatMessage(x)}
-               changeMessage={changeChatMessage(x)}/>,
+               changeMessage={changeChatMessage(x)}
+               message={x.chatmessage}/>,
     _ => <React.Fragment />
   );
 
@@ -233,8 +235,7 @@ const sea: (s:'right'|'left') => (g:Types.Battleship) => React.ReactElement<any>
               leave={mouseLeave(x)(s)}
               selected={x.currentBoard && x.currentBoard === s}
               selectedPos={x.currentPos}
-              message={(s === 'right' && x.game.turn === x.game.you) || 
-                       (s === 'left' && (x.game.turn === 'notready' || x.game.turb === 'config')) ? x.message : ''}/>,
+              message={(s === 'right' !== (x.game.turn === 'notready' || x.game.turb === 'config')) ? x.message : ''}/>,
     _ => <React.Fragment />
   );
 
@@ -254,7 +255,7 @@ const init: (battle:Types.Battleship) => any = battle => ajax.getJSON(battle.api
           (game:Types.Game) => of(1).pipe(
             tap(_ => renderGame(Object.assign(battle, {
                 mode: 'game', rules: rulesets, gameid: gameid, session: s, bottom: 0, 
-                initSea: (game[game.you].map && game[game.you].map.length > 0 ? 
+                initSea: (game.you !== 'guest' && game[game.you] && game[game.you].map && game[game.you].map.length > 0 ? 
                   game[game.you].map : initSea(X, Y)), game: game
               }))),
             tap(_ => renderChat(battle))
@@ -476,20 +477,21 @@ const shoot: (battle:Types.Battleship) => (x:number) => (y:number) => (_:React.M
 
 const changeChatMessage: (battle:Types.Battleship) => (e:React.FormEvent<HTMLInputElement>) => any = 
   battle => e => e.currentTarget.value.length <= 140 && 
-                 render(Object.assign(battle, {message: e.currentTarget.value, popupError: ''}));
+                 render(Object.assign(battle, {chatmessage: e.currentTarget.value}));
 
-const sendChatMessage: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
-  R.when( R.allPass(
+const sendChatMessage: (battle:Types.Battleship) => (_:any) => any = 
+  R.ifElse( R.allPass(
       R.map(x => R.compose(R.not, R.either(R.isEmpty, R.isNil), R.view(R.lensProp(x))),
-            ['game', 'gameid', 'session', 'message'])),
+            ['game', 'gameid', 'session', 'chatmessage'])),
     b => (_:React.MouseEvent<HTMLDivElement>) => ajax({
-      url: `${b.api}/${b.gameid}/${b.session}/chat`,
-      method: 'POST',
-      body: b.message,
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    }).subscribe(r => render(Object.assign(b, {message: ''})))
+        url: `${b.api}/${b.gameid}/${b.session}/chat`,
+        method: 'POST',
+        body: { message: b.chatmessage },
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }).subscribe(r => render(Object.assign(b, {chatmessage: ''}))),
+    b => (_:React.MouseEvent<HTMLDivElement>) => render(Object.assign(b, {mesage: 'Message shouldn\'t be empty!' }))
   );
 
 const mouseEnter: (b: Types.Battleship) => (board: 'right'|'left') => (x: number) => (y: number) 
@@ -508,6 +510,9 @@ const mouseLeave: (b: Types.Battleship) => (board: 'right'|'left') => (x: number
     currentPos: undefined,
   }));
 
+const changeBottomIndex: (battle:Types.Battleship) => (i: number) => (_:React.MouseEvent<HTMLDivElement>) => any = 
+  b => i => _ => render(Object.assign(b, {bottom: i}));
+
 //Render. Should be very simple.
 const render = (game: Types.Battleship) => 
   ReactDOM.render(R.reduce(concat, Comp(empty), R.map(Comp, 
@@ -522,7 +527,7 @@ const render = (game: Types.Battleship) =>
       areyousurepopup,
       sea('left'),
       sea('right'),
-      bottom([{name: 'Chat', component: chat} , {name: 'Guests List', component: guests}]),
+      bottom([{name: 'Chat', component: chat} , {name: 'Who is here', component: guests}]),
       footer,
       loader]
   )).fold(game), document.getElementById('root') as HTMLElement);

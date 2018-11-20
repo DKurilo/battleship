@@ -60,6 +60,7 @@ export type Game = {
   rules: string;
   turn: Turn;
   you: You;
+  yourname: string;
   game: string;
   message: string;
   owner: Person;
@@ -87,4 +88,5 @@ export type Battleship = {
   popupRules?: string;
   bottom?: number;
   message?: string;
+  chatmessage?: string;
 }

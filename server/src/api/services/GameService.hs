@@ -291,10 +291,12 @@ getStatus mongoHost mongoUser mongoPass mongoDb = do
   let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse $ setHeader "Content-Type" "application/json"
   pgame <- getParam "gameid"
-  session <- getParam "session"
+  psession <- getParam "session"
   let game = case pgame of Just g -> B.unpack g
                            Nothing -> ""
-  let msess = (B.unpack <$> session)
+  let session = case psession of Just s -> B.unpack s
+                                 Nothing -> ""
+  let msess = (B.unpack <$> psession)
   rights <- liftIO $ fillRights pipe mongoDb game msess
   let getGStatus you turn rules gameinfo isPublic = do
       let owner = BS.at "owner" gameinfo
@@ -333,9 +335,19 @@ getStatus mongoHost mongoUser mongoPass mongoDb = do
                                                                     ]
                                            _ -> object []) | mbguest <- guests]
             _ -> []
+      let yourname = case you of
+            "owner" -> ownername
+            "player" -> BS.at "name" (BS.at "player" gameinfo)
+            "guest" -> case mbguests of
+                  Right (BS.Array guests) -> head $ [n | [n,s] <- [(case mbguest of 
+                                           (BS.Doc guest) -> [BS.at "name" guest, BS.at "session" guest]
+                                           _ -> ["",""]) | mbguest <- guests], s==session]
+                  _ -> ""
+
       let status = object [ "game" .= game
                           , "message" .= T.pack (BS.at "message" gameinfo)
                           , "you" .= you
+                          , "yourname" .= yourname
                           , "rules" .= rules
                           , "turn" .= turn
                           , "owner" .= object [ "name" .= T.pack ownername
@@ -669,9 +681,9 @@ sendMessage mongoHost mongoUser mongoPass mongoDb = do
   modifyResponse $ setHeader "Content-Type" "application/json"
   pgame <- getParam "gameid"
   session <- getParam "session"
-  mmessage <- fmap (\x -> decode x :: Maybe String) $ readRequestBody 4096
+  mmessage <- fmap (\x -> decode x :: Maybe Message) $ readRequestBody 4096
   case mmessage of 
-        Just message -> do
+        Just (Message message) -> do
               let game = case pgame of Just g -> B.unpack g
                                        Nothing -> ""
               let msess = B.unpack <$> session
@@ -732,7 +744,7 @@ readMessages mongoHost mongoUser mongoPass mongoDb = do
   let msess = B.unpack <$> session
   let ltime = (read (case pltime of Just t -> B.unpack t
                                     Nothing -> "0")) :: Integer
-  let action g t = rest =<< MQ.find (MQ.select ["time" =: ["$gt" =: t], "game" =: g] "chats")
+  let action g t = rest =<< MQ.find (MQ.select ["time" =: ["$gt" =: t], "game" =: g] "chats") {MQ.sort = ["time" =: -1]}
   rights <- liftIO $ fillRights pipe mongoDb game msess
   case rights of
     GameRights True True _ _ _ _ _ _ _ -> do

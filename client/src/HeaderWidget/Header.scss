@@ -11,9 +11,16 @@
     opacity: 1;
     transition: opacity .8s linear .2s;
     cursor: pointer;
+    display: inline-block;
     &:hover {
       opacity: .8;
     }
+  }
+  .youare{
+    display: inline-block;
+    margin-left: 20px;
+    position: relative;
+    top: -9px;
   }
   .right{
     position: absolute;

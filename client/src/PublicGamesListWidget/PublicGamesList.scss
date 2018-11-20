@@ -10,7 +10,7 @@
     border-radius: 10px;
     position: relative;
     font: 12px/14px sans-serif;
-    transition: background .8s linear .2s, border-color .8s linear .2s, color .8s linear .2s;
+    transition: background .4s linear, border-color .4s linear, color .4s linear;
     &:hover{
       background: rgba(#c9ddf2,.3);
       border-color: rgba(#c9ddf2,.4);
