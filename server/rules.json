@@ -17,7 +17,7 @@
     "id": "classic",
     "name": "Classic",
     "rules": "Aircraft Carrier: size: 5, amount: 1\nBattleship: size: 4, amount: 1\nCruiser: size: 3, amount: 1\nDestroyer: size: 2, amount: 2\nSubmarine: size: 1, amount: 2",
-    "ships": [[5,1], [4,1], [3,2], [2,2], [1,2]],
+    "ships": [[5,1], [4,1], [3,1], [2,2], [1,2]],
     "order": 2
   },
   {

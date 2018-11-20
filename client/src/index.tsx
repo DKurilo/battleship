@@ -65,13 +65,18 @@ const getSessionId: () => string = () => R.ifElse(
 const checkMode: (a:Array<string>) => (g:Types.Battleship) => boolean = 
   a => R.compose(R.flip(R.contains)(a), R.view(R.lensProp('mode')));
 
+const generatePlaytimeTitle: (g:Types.Game) => string = 
+  g => g.player ? 
+    (g.you === 'player' ? `${g.player.name} vs ${g.owner.name}` : `${g.owner.name} vs ${g.player.name}`) :
+    'Battleship Game';
+
 const generateGameTitle: (g:Types.Game) => string = g => ({
   notready: 'Waiting for players!',
   config: 'Will start soon!',
-  owner: g.player ? `${g.owner.name} vs ${g.player.name}` : 'Battleship Game',
-  player: g.player ? `${g.player.name} vs ${g.owner.name}` : 'Battleship Game',
+  owner: generatePlaytimeTitle(g),
+  player: generatePlaytimeTitle(g),
   owner_win: g.owner.name + ' won!',
-  palyer_win: g.player ? g.player.name + ' won!' : 'Battleship Game',
+  player_win: g.player ? g.player.name + ' won!' : 'Battleship Game',
 }[g.turn]);
 
 const generateTitle: (b:Types.Battleship) => string = b => ({

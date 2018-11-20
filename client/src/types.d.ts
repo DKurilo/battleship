@@ -52,7 +52,7 @@ export type Person = {
   map?: Sea;
   new?: boolean;
 }
-export type Turn = 'notready'|'config'|'owner'|'player'|'owner_win'|'palyer_win';
+export type Turn = 'notready'|'config'|'owner'|'player'|'owner_win'|'player_win';
 export type Mode = 'pre'|'init'|'create'|'join'|'loading'|'game'|'make_public'|'are_you_sure';
 export type You = 'owner'|'player'|'guest';
 export type BoardType = "right"|"left";
