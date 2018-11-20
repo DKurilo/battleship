@@ -32,8 +32,8 @@ data GameService = GameService { }
 
 CL.makeLenses ''GameService
 
-gemeTimeout :: Int
-gemeTimeout = 3600000
+gameTimeout :: Int
+gameTimeout = 3600
 
 mapWidth :: Int
 mapWidth = 10
@@ -84,7 +84,7 @@ getPublicGamesList mongoHost mongoUser mongoPass mongoDb = do
   let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse $ setHeader "Content-Type" "application/json"
   time <- liftIO $ round <$> getPOSIXTime
-  let action = rest =<< MQ.find (MQ.select ["date" =: ["$gte" =: time - gemeTimeout], "public" =: True] "games") 
+  let action = rest =<< MQ.find (MQ.select ["date" =: ["$gte" =: time - gameTimeout], "public" =: True] "games") 
                                 {MQ.sort = ["date" =: -1]}
   games <- a $ action
   writeLBS . encode $ fmap (\d -> PublicGame (BS.at "game" d) (BS.at "name" (BS.at "owner" d)) (BS.at "message" d) (BS.at "rules" d) (getTurn $ BS.at "turn" d)) games
@@ -796,7 +796,7 @@ fillRights :: Pipe -> Database -> String -> Maybe String -> IO GameRights
 fillRights pipe mongoDb game session = do
   let a action = liftIO $ performAction pipe mongoDb action
   time <- liftIO $ round <$> getPOSIXTime
-  game <- a $ MQ.findOne (MQ.select ["date" =: ["$gte" =: time - gemeTimeout], "game" =: game] "games")
+  game <- a $ MQ.findOne (MQ.select ["date" =: ["$gte" =: time - gameTimeout], "game" =: game] "games")
   let turn v = case v of Right (BS.Array l) -> getTurn $ map (\v -> case v of (BS.String s) -> T.unpack s 
                                                                               _ -> "noop") l
                          _ -> NOTREADY
