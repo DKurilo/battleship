@@ -1,0 +1,7 @@
+version: "3"
+services:
+    battleship:
+        build: .
+        container_name: battleship
+        volumes:
+            - ../:/var/build
