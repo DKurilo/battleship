@@ -46,6 +46,16 @@
       }
       .text {
         display: inline-block;
+        &.hit {
+          color: #d16b00;
+        }
+        &.miss {
+          color: #000000;
+        }
+        &.sank {
+          color: #d16b00;
+          font-weight: bold;
+        }
       }
     }
   }
