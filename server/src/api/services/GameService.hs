@@ -227,7 +227,7 @@ sendMap mongoHost mongoUser mongoPass mongoDb rulePath = do
               writeLBS "ok"
               modifyResponse $ setResponseCode 200
             _ -> do
-              writeLBS . encode $ APIError "Can't send this map for this game!"
+              writeLBS . encode $ APIError "Check your ships!"
               modifyResponse $ setResponseCode 406
       case rights of
         GameRights True True _ NOTREADY _ name _ rid _ -> do
@@ -652,7 +652,7 @@ shoot mongoHost mongoUser mongoPass mongoDb = do
                       writeLBS . encode $ APIError "Wrong shot!"
                       modifyResponse $ setResponseCode 406
                 _ -> do
-                  writeLBS . encode $ APIError "Can't make this game public!"
+                  writeLBS . encode $ APIError "You can't shoot now!"
                   modifyResponse $ setResponseCode 400
         _ -> do
               writeLBS . encode $ APIError "Can't find coordinates!"

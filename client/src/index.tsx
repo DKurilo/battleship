@@ -397,7 +397,9 @@ const popupChangeRules: (battle:Types.Battleship) => (e:React.FormEvent<HTMLSele
   battle => e => render(Object.assign(battle, {popupRules: e.currentTarget.value, popupError: ''}));
 
 const closeGame: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
-  battle => _ => of(1).pipe(tap(_ => renderInit(Object.assign(battle, {mode: 'init'})))).subscribe(
+  battle => _ => of(1).pipe(tap(_ => renderInit(
+      Object.assign(battle, {mode: 'init', popupMessage:'', message: ''})
+    ))).subscribe(
     _ => history.pushState({}, 'Battleship Game', `${window.location.protocol}//${window.location.host}/`));
 
 const openMakePublicPopup: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
