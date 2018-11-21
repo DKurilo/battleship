@@ -2,6 +2,11 @@
   width: 100%;
   margin: 10px 0 20px;
   text-align: left;
+  font: 12px/14px sans-serif;
+  .no-games{
+    text-align: center;
+    font-weight: bold;
+  }
   .game {
     margin: 5px 0;
     padding: 10px;
@@ -9,7 +14,6 @@
     background: rgba(#c9ddf2,.1);
     border-radius: 10px;
     position: relative;
-    font: 12px/14px sans-serif;
     transition: background .4s linear, border-color .4s linear, color .4s linear;
     &:hover{
       background: rgba(#c9ddf2,.3);

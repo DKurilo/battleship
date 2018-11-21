@@ -12,6 +12,11 @@ const empty: (_:any) => React.ReactElement<any> = _ => <React.Fragment />;
 
 const wrapAction: (f: Function) => (id: string) => (_:any) => any = f => id => _ => f(id);
 
+const oops: (g: Array<any>) => React.ReactElement<any> = R.ifElse(R.either(R.empty, R.isNil),
+    _ => <p className="no-games">Oops! So empty. You can create one!</p>,
+    empty
+  );
+
 const game: (f: Function) => (g: Types.PublicGame) => (rules:Array<Types.Rule>) => React.ReactElement<any> = 
   f => g => rules => ((r:Types.Rule) => 
     <div className="game">
@@ -33,5 +38,6 @@ const game: (f: Function) => (g: Types.PublicGame) => (rules:Array<Types.Rule>) 
 export const PublicGamesList = (props:{games: Array<Types.PublicGame>, rules: Array<Types.Rule>, action: Function}) =>
   <div className={styles.PublicGamesList}>
     <h3>Or join one of these games:</h3>
+    {Comp(oops).fold(props.games)}
     {R.reduce(concat, Comp(empty), R.map(R.compose(Comp, game(wrapAction(props.action))), props.games)).fold(props.rules)}
   </div>
