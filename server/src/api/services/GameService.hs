@@ -231,23 +231,23 @@ sendMap mongoHost mongoUser mongoPass mongoDb rulePath = do
               modifyResponse $ setResponseCode 406
       case rights of
         GameRights True True _ NOTREADY _ name _ rid _ -> do
-          doit name "owner" "I've sent map." "owner_map" rid
+          doit name "owner" "I've sent my map." "owner_map" rid
         GameRights True True _ NOTREADY_WITH_MAP _ name _ rid _ -> do
-          doit name "owner" "I've sent new map." "owner_map" rid
+          doit name "owner" "I've sent a new map." "owner_map" rid
         GameRights True True _ CONFIG _ name _ rid _ -> do
-          doit name "owner" "I've sent map. Waiting for you!" "owner_map" rid
+          doit name "owner" "I've sent my map. Waiting for you!" "owner_map" rid
         GameRights True True _ CONFIG_WAIT_OWNER _ name _ rid _ -> do
-          doit name "owner" "I've sent map. Let's do this!" "owner_map" rid
+          doit name "owner" "I've sent my map. Let's do this!" "owner_map" rid
         GameRights True True _ CONFIG_WAIT_PLAYER _ name _ rid _ -> do
-          doit name "owner" "I've sent new map. Waiting for you!" "owner_map" rid
+          doit name "owner" "I've sent a new map. Waiting for you!" "owner_map" rid
         GameRights True _ True CONFIG _ name _ rid _ -> do
-          doit name "player" "I've sent map. Waiting for you!" "player_map" rid
+          doit name "player" "I've sent my map. Waiting for you!" "player_map" rid
         GameRights True _ True CONFIG_WAIT_OWNER _ name _ rid _ -> do
-          doit name "player" "I've sent new map. Waiting for you!" "player_map" rid
+          doit name "player" "I've sent a new map. Waiting for you!" "player_map" rid
         GameRights True _ True CONFIG_WAIT_PLAYER _ name _ rid _ -> do
-          doit name "player" "I've sent map. Let's do this!" "player_map" rid
+          doit name "player" "I've sent my map. Let's do this!" "player_map" rid
         _ -> do
-           writeLBS . encode $ APIError "Can't send map for this game or game is not exists!"
+           writeLBS . encode $ APIError "Can't send the map for this game or the game is not exists!"
            modifyResponse $ setResponseCode 403
       liftIO $ closeConnection pipe
     Nothing -> do
@@ -427,7 +427,7 @@ setPublic mongoHost mongoUser mongoPass mongoDb = do
                              , "name" =: n
                              , "session" =: msess
                              , "time" =: time
-                             , "message" =: "Attention! Game is public now!"
+                             , "message" =: "Attention! The game is now public!"
                              ]::Document
                   a $ MQ.insert "chats" chat
                   writeLBS "ok"
@@ -505,7 +505,7 @@ connectGamePlayer mongoHost mongoUser mongoPass mongoDb = do
                 GameRights True False False NOTREADY_WITH_MAP _ _ _ _ _ -> do
                   doit
                 _ -> do
-                  writeLBS . encode $ APIError "Can't connect as player!"
+                  writeLBS . encode $ APIError "Can't connect as a player!"
                   modifyResponse $ setResponseCode 400
         _ -> do
               writeLBS . encode $ APIError "Name and message are required!"
@@ -551,7 +551,7 @@ connectGameGuest mongoHost mongoUser mongoPass mongoDb = do
                   writeLBS $ encode $ SessionInfo game sessionId
                   modifyResponse . setResponseCode $ 200
                 _ -> do
-                  writeLBS . encode $ APIError "Can't connect as guest!"
+                  writeLBS . encode $ APIError "Can't connect as a guest!"
                   modifyResponse $ setResponseCode 400
         _ -> do
               writeLBS . encode $ APIError "Name and message are required!"
