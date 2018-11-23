@@ -305,7 +305,7 @@ getStatus mongoHost mongoUser mongoPass mongoDb = do
       mbownermap <- try (BS.look "map" owner) :: IO (Either SomeException BS.Value)
       let ownermap = case mbownermap of 
             Right (BS.Array m) -> [(case mbl of
-              BS.Array l -> [(case mbc of BS.Int32 c -> head $ [c | (c > 1 || you == "owner")] ++ [0] 
+              BS.Array l -> [(case mbc of BS.Int32 c -> head $ [c | c > 1 || you == "owner" || isGameFinished turn] ++ [0] 
                                           _ -> 0) | mbc <- l]
               _ -> []) | mbl <- m]
             _ -> []
@@ -316,7 +316,7 @@ getStatus mongoHost mongoUser mongoPass mongoDb = do
               mbplayermap <- try (BS.look "map" player) :: IO (Either SomeException BS.Value)
               let playermap = case mbplayermap of 
                     Right (BS.Array m) -> [(case mbl of
-                      BS.Array l -> [(case mbc of BS.Int32 c -> head $ [c | c > 1 || you == "player"] ++ [0] 
+                      BS.Array l -> [(case mbc of BS.Int32 c -> head $ [c | c > 1 || you == "player" || isGameFinished turn] ++ [0] 
                                                   _ -> 0) | mbc <- l]
                       _ -> []) | mbl <- m]
                     _ -> []
@@ -983,6 +983,10 @@ getWhile t (x:xs) | t x = [x] ++ getWhile t xs
 isWin :: [[Int]] -> Bool
 isWin sm = sum [sum [head $ [0 | c/=1] ++ [1] | c <- l] | l <- sm] == 1
 
+isGameFinished :: Turn -> Bool
+isGameFinished PLAYER_WIN = True
+isGameFinished OWNER_WIN = True
+isGameFinished _ = False
 ----------------------
 -- MongoDB functions
 connectAndAuth :: Host -> Username -> Password -> Database -> IO Pipe

@@ -12,7 +12,7 @@ const empty: (_:any) => React.ReactElement<any> = _ => <React.Fragment />;
 
 const wrapAction: (f: Function) => (id: string) => (_:any) => any = f => id => _ => f(id);
 
-const oops: (g: Array<any>) => React.ReactElement<any> = R.ifElse(R.either(R.empty, R.isNil),
+const oops: (g: Array<any>) => React.ReactElement<any> = R.ifElse(R.either(R.isEmpty, R.isNil),
     _ => <p className="no-games">Oops! So empty. You can create one!</p>,
     empty
   );

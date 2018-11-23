@@ -240,7 +240,7 @@ const sea: (s:'right'|'left') => (g:Types.Battleship) => React.ReactElement<any>
               leave={mouseLeave(x)(s)}
               selected={x.currentBoard && x.currentBoard === s}
               selectedPos={x.currentPos}
-              message={(s === 'right' !== (x.game.turn === 'notready' || x.game.turb === 'config')) ? x.message : ''}/>,
+              message={((s === 'right') !== (x.game.turn === 'notready')) ? x.message : ''}/>,
     _ => <React.Fragment />
   );
 
