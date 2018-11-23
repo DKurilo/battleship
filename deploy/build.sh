@@ -10,11 +10,12 @@ cp  -r ./build ../deploy/out/public
 
 cd ../server
 cabal update
-cabal install
+cabal install --builddir=dist.prod
 ghc-pkg unregister --force snap-server
 cabal install snap-server -fopenssl
+cabal build --builddir=dist.prod
 
-cp ./dist/build/battleship/battleship ../deploy/out/
+cp ./dist.prod/build/battleship/battleship ../deploy/out/
 
 cp ./rules.json ../deploy/out/
 

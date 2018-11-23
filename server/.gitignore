@@ -1,5 +1,6 @@
 ### Haskell ###
 dist
+dist.prod
 cabal-dev
 *.o
 *.hi
