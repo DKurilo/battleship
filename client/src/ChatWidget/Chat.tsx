@@ -10,7 +10,7 @@ const empty: (_:any) => React.ReactElement<any> = _ => <React.Fragment />;
 
 const message: (m: Types.Message) => (_:any) => React.ReactElement<any> = 
   m => (_: any) => <div className="chat-message">
-                     <div className="name">{m.name}:{' '}</div>
+                     <div className="name">{m.name}: {' '}</div>
                      <div className={R.join(' ', R.concat(['text'],R.tail(R.match(/.. - (miss|hit|sank)/, m.message))))}>
                        {m.message}
                      </div>

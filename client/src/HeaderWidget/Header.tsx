@@ -58,7 +58,7 @@ export const Header = (props:{close: (e:React.MouseEvent<HTMLDivElement>) => any
         getState(props.game.owner.name)(props.game.player ? props.game.player.name : '')(props.game.turn)
       }</div>
       <div className="copylink">
-        <input type="text" className="link" ref={setLinkElement} value={getLink(props.game.game)} readOnly={true}/>
+        <input type="text" className="link" ref={setLinkElement} value={getLink(props.game.game)}/>
         <div className="copy" onClick={copyLink}>Copy</div>
       </div>
       {Comp(makePublicButton).fold(props)}

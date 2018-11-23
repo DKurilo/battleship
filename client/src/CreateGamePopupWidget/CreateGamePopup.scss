@@ -56,7 +56,8 @@
       .rules-description {
         box-sizing: border-box;
         position: absolute;
-        top: 16px;
+        top: 0;
+        transform: translateY(-100%);
         display: none;
         width: 100%;
         border-radius: 7px;
