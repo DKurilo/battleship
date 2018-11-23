@@ -30,7 +30,8 @@ const setLinkElement:(el:HTMLInputElement) => any  =
 const copyLink:(_:React.MouseEvent<HTMLDivElement>) => any = 
   _ => R.compose(R.when(R.compose(R.not, R.isNil),
     e => of(1).pipe(
-      tap(_ => e.select())
+      tap(_ => e.focus()),
+      tap(_ => e.setSelectionRange(0,10000))
     ).subscribe(
       _ => document.execCommand('copy')
     )
@@ -58,7 +59,7 @@ export const Header = (props:{close: (e:React.MouseEvent<HTMLDivElement>) => any
         getState(props.game.owner.name)(props.game.player ? props.game.player.name : '')(props.game.turn)
       }</div>
       <div className="copylink">
-        <input type="text" className="link" ref={setLinkElement} value={getLink(props.game.game)}/>
+        <input type="text" className="link" ref={setLinkElement} value={getLink(props.game.game)} contenteditable="true"/>
         <div className="copy" onClick={copyLink}>Copy</div>
       </div>
       {Comp(makePublicButton).fold(props)}
