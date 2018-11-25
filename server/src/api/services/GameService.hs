@@ -437,10 +437,13 @@ inviteBot mongoHost mongoUser mongoPass mongoDb botsPath = do
               let doit g d r = do
                     bot <- liftIO $ botByName bn botsPath
                     case (getBotIdIfCan bot r) of (Just bid) -> do
+                                                    let botgameSelector = MQ.Select 
+                                                                                (["game" =: game]::Selector)
+                                                                                (T.pack $ "botgames_" ++ bid)
                                                     let botgame = [ "game" =: game
                                                                   , "date" =: d
                                                                   ]::Document
-                                                    a $ MQ.insert (T.pack $ "botgames_" ++ bid) botgame
+                                                    a $ MQ.upsert botgameSelector botgame
                                                     writeLBS $ "ok"
                                                     modifyResponse . setResponseCode $ 200
                                                   _ -> do
