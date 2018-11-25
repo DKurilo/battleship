@@ -18,6 +18,7 @@ import { Header } from './HeaderWidget';
 import { JoinPopup } from './JoinPopupWidget';
 import { Loader } from './LoaderWidget';
 import { MakeGamePublicPopup } from './MakeGamePublicPopupWidget';
+import { InviteBotPopup } from './InviteBotPopupWidget';
 import { PublicGamesList } from './PublicGamesListWidget';
 import { Sea } from './SeaWidget';
 import { Title } from './TitleWidget';
@@ -86,6 +87,7 @@ const generateTitle: (b:Types.Battleship) => string = b => ({
   join: 'Battleship Game',
   game: b.game ? generateGameTitle(b.game) : 'Battleship Game',
   make_public: b.game ? generateGameTitle(b.game) : 'Battleship Game',
+  invite_bot: b.game ? generateGameTitle(b.game) : 'Battleship Game',
   are_you_sure: b.game ? generateGameTitle(b.game) : 'Battleship Game',
 }[b.mode]);
 
@@ -118,6 +120,11 @@ const seaOwner = {
   }
 };
 
+const loadBots: (b:Types.Battleship) => any = b => ajax.getJSON(b.api + '/bots').subscribe(
+  bots => Object.assign(b, {bots: bots}),
+  _ => loadBots(b)
+);
+
 // Elements
 const empty: (_:any) => React.ReactElement<any> = _ => <React.Fragment />;
 
@@ -128,17 +135,18 @@ const loader: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
 );
 
 const header: (b:Types.Battleship) => React.ReactElement<any> = R.ifElse(
-  checkMode(['game', 'make_public', 'are_you_sure']),
+  checkMode(['game', 'make_public', 'invite_bot', 'are_you_sure']),
   x => <Header close={openAreYouSurePopup(x)}
                rules={currentRules(x)}
                game={x.game}
                makePublic={openMakePublicPopup(x)}
+               inviteBot={openInviteBotPopup(x)}
                session={x.session}/>,
   _ => <React.Fragment />
 );
 
 const title: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
-  checkMode(['init', 'join', 'create', 'game', 'make_public', 'are_you_sure']),
+  checkMode(['init', 'join', 'create', 'game', 'make_public', 'invite_bot', 'are_you_sure']),
   x => <Title text={generateTitle(x)}/>,
   _ => <React.Fragment />
 );
@@ -193,6 +201,16 @@ const makepublicpopup: (g:Types.Battleship) => React.ReactElement<any> = R.ifEls
   _ => <React.Fragment />
 );
 
+const invitebotpopup: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
+  R.whereEq({mode: 'invite_bot'}),
+  x => <InviteBotPopup close={closeInviteBotPopup(x)} 
+                       invitebot={inviteBot(x)}
+                       error={x.popupError}
+                       rules={x.game.rules}
+                       bots={x.bots}/>,
+  _ => <React.Fragment />
+);
+
 const areyousurepopup: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
   R.whereEq({mode: 'are_you_sure'}),
   x => <AreYouSurePopup close={closeAreYouSurePopup(x)} 
@@ -202,13 +220,13 @@ const areyousurepopup: (g:Types.Battleship) => React.ReactElement<any> = R.ifEls
 
 const bottom: (els:Array<Types.TabItem>) => (g:Types.Battleship) => React.ReactElement<any> = 
   els => R.ifElse(
-    checkMode(['game', 'make_public', 'are_you_sure']),
+    checkMode(['game', 'make_public', 'invite_bot', 'are_you_sure']),
     x => <Bottom elements={els} battle={x} change={changeBottomIndex(x)}/>,
     _ => <React.Fragment />
   );
 
 const chat: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
-    checkMode(['game', 'make_public', 'are_you_sure']),
+    checkMode(['game', 'make_public', 'invite_bot', 'are_you_sure']),
     x => <Chat messages={x.chat}
                sendMessage={sendChatMessage(x)}
                changeMessage={changeChatMessage(x)}
@@ -217,13 +235,13 @@ const chat: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
   );
 
 const guests: (g:Types.Battleship) => React.ReactElement<any> = R.ifElse(
-    checkMode(['game', 'make_public', 'are_you_sure']),
+    checkMode(['game', 'make_public', 'invite_bot', 'are_you_sure']),
     x => <Guests guests={x.game.guests} owner={x.game.owner} player={x.game.player}/>,
     _ => <React.Fragment />
   );
 
 const sea: (s:'right'|'left') => (g:Types.Battleship) => React.ReactElement<any> = s => R.ifElse(
-    checkMode(['game', 'make_public', 'are_you_sure']),
+    checkMode(['game', 'make_public', 'invite_bot', 'are_you_sure']),
     x => <Sea you={x.game.you}
               turn={x.game.turn}
               sendMap={x.game.you!=='guest' && s==='left' && (x.game.turn === 'notready' || x.game.turn === 'config') ? 
@@ -248,7 +266,8 @@ const footer: (g:Types.Battleship) => React.ReactElement<any> = g => <Footer />;
 
 // Actions
 const init: (battle:Types.Battleship) => any = battle => ajax.getJSON(battle.api + '/rules').pipe(
-  tap(_ => render(battle))
+  tap(_ => render(battle)),
+  tap(_ => loadBots(battle))
 ).subscribe(
   rulesets => R.ifElse(R.isEmpty,
     _ => renderInit(Object.assign(battle, {mode: 'init', rules: rulesets})),
@@ -367,21 +386,21 @@ const createGame: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElemen
 
 const renderGame: (battle:Types.Battleship) => any = 
   battle => ajax.getJSON(`${battle.api}/${battle.gameid}/${battle.session}`).pipe(
-    tap(_ => R.when(checkMode(['game', 'make_public', 'are_you_sure']), b => 
+    tap(_ => R.when(checkMode(['game', 'make_public', 'invite_bot', 'are_you_sure']), b => 
       of(1).pipe(delay(1000)).subscribe(x=>renderGame(b)))(battle))
   ).subscribe(
     game => render(Object.assign(battle, {game: game})),
-    _ => R.when(checkMode(['game', 'make_public', 'are_you_sure']), b => 
+    _ => R.when(checkMode(['game', 'make_public', 'invite_bot', 'are_you_sure']), b => 
       of(1).pipe(delay(1000)).subscribe(x=>renderGame(b)))(battle)
   );
 
 const renderChat: (battle:Types.Battleship) => any =
   battle => ajax.getJSON(`${battle.api}/${battle.gameid}/${battle.session}/chat`).pipe(
-    tap(_ => R.when(checkMode(['game', 'make_public', 'are_you_sure']), b => 
+    tap(_ => R.when(checkMode(['game', 'make_public', 'invite_bot', 'are_you_sure']), b => 
       of(1).pipe(delay(1000)).subscribe(x=>renderChat(b)))(battle))
   ).subscribe(
     chat => render(Object.assign(battle, {chat: chat})),
-    _ => R.when(checkMode(['game', 'make_public', 'are_you_sure']), b => 
+    _ => R.when(checkMode(['game', 'make_public', 'invite_bot', 'are_you_sure']), b => 
       of(1).pipe(delay(1000)).subscribe(x=>renderChat(b)))(battle)
   );
 
@@ -403,7 +422,7 @@ const closeGame: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement
     _ => history.pushState({}, 'Battleship Game', `${window.location.protocol}//${window.location.host}/`));
 
 const openMakePublicPopup: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
-  battle => _ => battle.gameid && render(Object.assign(battle, {mode: 'make_public', popupMessage: ''}));
+  battle => _ => battle.gameid && render(Object.assign(battle, {mode: 'make_public', popupMessage: '', popupError: ''}));
 
 const closeMakePublicPopup: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
   battle => _ => render(Object.assign(battle, {mode: 'game'}));
@@ -433,6 +452,26 @@ const openAreYouSurePopup: (battle:Types.Battleship) => (_:React.MouseEvent<HTML
   battle => _ => battle.gameid && render(Object.assign(battle, {mode: 'are_you_sure'}));
 
 const closeAreYouSurePopup = closeMakePublicPopup;
+
+const openInviteBotPopup: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
+  battle => _ => battle.gameid && render(Object.assign(battle, {mode: 'invite_bot', popupError: ''}));
+
+const closeInviteBotPopup = closeMakePublicPopup;
+
+const inviteBot: (battle:Types.Battleship) => (name:string) => (_:React.MouseEvent<HTMLDivElement>) => any = 
+  battle => name => _ => ajax({
+    url: `${battle.api}/${battle.gameid}/${battle.session}/invitebot`,
+    method: 'POST',
+    body: {
+      botname: name
+    },
+    headers: {
+      'Content-Type': 'application/json',
+    }
+  }).subscribe(
+    r => render(Object.assign(battle, {mode: 'game'})),
+    r => render(Object.assign(battle, {popupError: r.response}))
+  ));
 
 const changeMySea: (battle:Types.Battleship) => (x:number) => (y:number) => (_:React.MouseEvent<HTMLDivElement>) => any =
   battle => x => y => _ => battle.initSea && battle.initSea[x] && battle.initSea[x][y] !== undefined ?
@@ -531,6 +570,7 @@ const render = (game: Types.Battleship) =>
       joinpopup,
       creategamepopup,
       makepublicpopup,
+      invitebotpopup,
       areyousurepopup,
       sea('left'),
       sea('right'),

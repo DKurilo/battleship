@@ -42,21 +42,23 @@ mapHeight :: Int
 mapHeight = 10
 ---------------------
 -- Routes
-gameRoutes :: Host -> Username -> Password -> Database -> FilePath -> [(B.ByteString, SN.Handler b GameService ())]
-gameRoutes mongoHost mongoUser mongoPass mongoDb rulePath = [
+gameRoutes :: Host -> Username -> Password -> Database -> FilePath -> FilePath -> [(B.ByteString, SN.Handler b GameService ())]
+gameRoutes mongoHost mongoUser mongoPass mongoDb rulePath botsPath= [
     ("/", method GET $ getPublicGamesList mongoHost mongoUser mongoPass mongoDb),
     ("/", method POST $ createGame mongoHost mongoUser mongoPass mongoDb rulePath),
     ("/rules", method GET $ getRules rulePath),
+    ("/bots", method GET $ getBots botsPath),
     ("/:gameid", method GET $ getGameShortInfo mongoHost mongoUser mongoPass mongoDb),
     ("/:gameid/:session/setmap", method POST $ sendMap mongoHost mongoUser mongoPass mongoDb rulePath),
     ("/:gameid/:session", method GET $ getStatus mongoHost mongoUser mongoPass mongoDb),
-    ("/:gameid/:session/invitebot", method POST $ inviteBot mongoHost mongoUser mongoPass mongoDb),
+    ("/:gameid/:session/invitebot", method POST $ inviteBot mongoHost mongoUser mongoPass mongoDb botsPath),
     ("/:gameid/:session/setpublic", method POST $ setPublic mongoHost mongoUser mongoPass mongoDb),
     ("/:gameid/connect/player", method POST $ connectGamePlayer mongoHost mongoUser mongoPass mongoDb),
     ("/:gameid/connect/guest", method POST $ connectGameGuest mongoHost mongoUser mongoPass mongoDb),
     ("/:gameid/:session/shoot", method POST $ shoot mongoHost mongoUser mongoPass mongoDb),
     ("/:gameid/:session/chat", method POST $ sendMessage mongoHost mongoUser mongoPass mongoDb),
-    ("/:gameid/:session/chat", method GET $ readMessages mongoHost mongoUser mongoPass mongoDb)
+    ("/:gameid/:session/chat", method GET $ readMessages mongoHost mongoUser mongoPass mongoDb),
+    ("/bots/:bot/games", method GET $ getBotsGamesList mongoHost mongoUser mongoPass mongoDb)
   ]
 
 -------------------------
@@ -89,6 +91,35 @@ getPublicGamesList mongoHost mongoUser mongoPass mongoDb = do
   games <- a $ action
   writeLBS . encode $ fmap (\d -> PublicGame (BS.at "game" d) (BS.at "name" (BS.at "owner" d)) (BS.at "message" d) (BS.at "rules" d) (getTurn $ BS.at "turn" d)) games
   liftIO $ closeConnection pipe
+  modifyResponse . setResponseCode $ 200
+
+-- get list of games for bot
+--   sends bot id
+--   GET /api/games/bots/{botid}/games
+--   response list of {game id, messsge}
+--   200
+--   [
+--     {gameid},
+--     ...
+--   ]
+--   500
+--   {message}
+getBotsGamesList :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
+getBotsGamesList mongoHost mongoUser mongoPass mongoDb = do
+  pbotid <- getParam "bot"
+  modifyResponse $ setHeader "Content-Type" "application/json"
+  case pbotid of Just botid -> do
+                                let bid = B.unpack botid
+                                pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
+                                let a action = liftIO $ performAction pipe mongoDb action
+                                time <- liftIO $ round <$> getPOSIXTime
+                                let action = rest =<< MQ.find (MQ.select
+                                                                  ["date" =: ["$gte" =: time - gameTimeout]]
+                                                                  (T.pack $ "botgames_" ++ bid))
+                                games <- a $ action
+                                writeLBS . encode $ fmap (\d -> (BS.at "game" d) :: String) games
+                                liftIO $ closeConnection pipe
+                 Nothing -> writeLBS . encode $ ([] :: [String])
   modifyResponse . setResponseCode $ 200
 
 ------------------------
@@ -377,13 +408,58 @@ getStatus mongoHost mongoUser mongoPass mongoDb = do
       modifyResponse $ setResponseCode 400
   liftIO $ closeConnection pipe
 
-inviteBot :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
-inviteBot mongoHost mongoUser mongoPass mongoDb = do
-  -- pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
-  -- let a action = liftIO $ performAction pipe mongoDb action
-  writeLBS . encode $ APIError "It's not implemented yet!"
-  modifyResponse . setResponseCode $ 501
-  --liftIO $ closeConnection pipe
+----------------------------
+-- invite bot
+--   post game id and session (only owner can invite strangers) and message
+--   POST /api/games/{gameid}/{session}/invitebot
+--   {
+--     "botname": {botname}
+--   }
+--   response success if added in list or error
+--   200
+--   "ok"
+--   404, 500
+--   {error}
+inviteBot :: Host -> Username -> Password -> Database -> FilePath -> SN.Handler b GameService ()
+inviteBot mongoHost mongoUser mongoPass mongoDb botsPath = do
+  pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
+  let a action = liftIO $ performAction pipe mongoDb action
+  modifyResponse $ setHeader "Content-Type" "application/json"
+  botname <- fmap (\x -> decode x :: Maybe BotName) $ readRequestBody 4096
+  case botname of 
+        Just (BotName bn) -> do
+              pgame <- getParam "gameid"
+              psession <- getParam "session"
+              let game = case pgame of Just g -> B.unpack g
+                                       Nothing -> ""
+              let msess = (B.unpack <$> psession)
+              rights <- liftIO $ fillRights pipe mongoDb game msess
+              let doit g d r = do
+                    bot <- liftIO $ botByName bn botsPath
+                    case (getBotIdIfCan bot r) of (Just bid) -> do
+                                                    let botgame = [ "game" =: game
+                                                                  , "date" =: d
+                                                                  ]::Document
+                                                    a $ MQ.insert (T.pack $ "botgames_" ++ bid) botgame
+                                                    writeLBS $ "ok"
+                                                    modifyResponse . setResponseCode $ 200
+                                                  _ -> do
+                                                    writeLBS $ "This bot doesn't know these rules!"
+                                                    modifyResponse . setResponseCode $ 406
+              case rights of
+                    GameRights True True False NOTREADY False _ _ rules (Just gameinfo) -> do
+                      let gamedate = (BS.at "date" gameinfo) :: Int
+                      doit game gamedate rules
+                    GameRights True True False NOTREADY_WITH_MAP False _ _ rules (Just gameinfo) -> do
+                      let gamedate = (BS.at "date" gameinfo) :: Int
+                      doit game gamedate rules
+                    _ -> do
+                      writeLBS . encode $ APIError "Can't invite bot! Maybe you already invited it?"
+                      modifyResponse $ setResponseCode 406
+        _ -> do
+              writeLBS . encode $ APIError "Can't find bot name!"
+              modifyResponse $ setResponseCode 400
+  liftIO $ closeConnection pipe
 
 ----------------------------
 -- invite stranger
@@ -790,6 +866,30 @@ getRules rulePath = do
   modifyResponse $ setHeader "Content-Type" "application/json"
   modifyResponse . setResponseCode $ 200
 
+------------------------------
+-- get bots list
+--   sends nothing
+--   GET /api/games/bots
+--   response bots list or error
+--   200
+--   [
+--     {
+--       "name": {name},
+--       "rules": {rules list}
+--     }
+--   ]
+--   404, 403, 400, 500
+--   {message}
+getBots :: FilePath -> SN.Handler b GameService ()
+getBots botsPath = do
+  bots <- liftIO $ (decodeFileStrict botsPath :: IO (Maybe [Bot]))
+  case bots of Just b -> do
+                 writeLBS . encode $ b
+               _ -> do
+                 writeLBS "[]"
+  modifyResponse $ setHeader "Content-Type" "application/json"
+  modifyResponse . setResponseCode $ 200
+
 ----------------------
 -- Game authentication
 fillRights :: Pipe -> Database -> String -> Maybe String -> IO GameRights
@@ -879,6 +979,20 @@ currentRules rules rulePath = do
                             _ -> head myrules
                    Nothing -> 
                        return $ Rule "free" "" "" [] 0
+
+
+botByName :: String -> FilePath -> IO (Maybe Bot)
+botByName botName botsPath = do
+  allbots <- liftIO $ (decodeFileStrict botsPath :: IO (Maybe [Bot]))
+  case allbots of Just bs -> do
+                       return . head $ [Just b | b <- bs, case b of Bot bn _ _ -> bn == botName
+                                                                    _ -> False] ++ [Nothing]
+                  _ -> do
+                       return Nothing
+
+getBotIdIfCan :: Maybe Bot -> String -> Maybe String
+getBotIdIfCan (Just (Bot _ bid rs)) r = head $ [Just bid | elem r rs] ++ [Nothing]
+getBotIdIfCan _ _ = Nothing
 
 ----------------------
 -- Map checks
@@ -1003,7 +1117,7 @@ closeConnection pipe = close pipe
 
 ----------------------
 -- Initialization
-gameServiceInit :: String -> String -> String -> String -> String -> SnapletInit b GameService
-gameServiceInit mongoHost mongoUser mongoPass mongoDb rulePath = makeSnaplet "game" "Battleship Service" Nothing $ do
-  addRoutes $ gameRoutes (readHostPort mongoHost) (T.pack mongoUser) (T.pack mongoPass) (T.pack mongoDb) rulePath
+gameServiceInit :: String -> String -> String -> String -> String -> String -> SnapletInit b GameService
+gameServiceInit mongoHost mongoUser mongoPass mongoDb rulePath botsPath = makeSnaplet "game" "Battleship Service" Nothing $ do
+  addRoutes $ gameRoutes (readHostPort mongoHost) (T.pack mongoUser) (T.pack mongoPass) (T.pack mongoDb) rulePath botsPath
   return $ GameService

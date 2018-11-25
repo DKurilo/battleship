@@ -20,8 +20,8 @@ respondOk :: Handler b Api ()
 respondOk = do
   modifyResponse . setResponseCode $ 200
 
-apiInit :: String -> String -> String -> String -> String -> SnapletInit b Api
-apiInit mongoHost mongoUser mongoPass mongoDb rulePath = makeSnaplet "api" "Core Api" Nothing $ do
-        ts <- nestSnaplet "games" gameService $ gameServiceInit mongoHost mongoUser mongoPass mongoDb rulePath
+apiInit :: String -> String -> String -> String -> String -> String -> SnapletInit b Api
+apiInit mongoHost mongoUser mongoPass mongoDb rulePath botsPath = makeSnaplet "api" "Core Api" Nothing $ do
+        ts <- nestSnaplet "games" gameService $ gameServiceInit mongoHost mongoUser mongoPass mongoDb rulePath botsPath
         addRoutes apiRoutes
         return $ Api ts

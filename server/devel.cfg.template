@@ -10,4 +10,5 @@ battleship
     db = "battleship"
   }
   rules = "rules.json"
+  bots = "bots.json"
 }

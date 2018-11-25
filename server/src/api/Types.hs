@@ -117,9 +117,34 @@ instance FromJSON Rule where
 instance ToJSON Rule where
   toJSON (Rule i n r _ o) = object ["id" .= i, "name" .= n, "rules" .= r, "order" .= o ]
 
+data Bot = Bot { botName :: String
+               , botId :: String
+               , botRulesList :: [String]
+               }
+instance FromJSON Bot where
+  parseJSON (Object v) =
+    Bot <$> v .: "name"
+         <*> v .: "id"
+         <*> v .: "rules"
+  parseJSON _ = mzero
+instance ToJSON Bot where
+  toJSON (Bot n _ r) = object ["name" .= n, "rules" .= r ]
+
 data Shot  = Shot { shotX :: Int, shotY :: Int }
 instance FromJSON Shot where
   parseJSON (Object v) =
     Shot <$> v .: "x"
          <*> v .: "y"
+  parseJSON _ = mzero
+
+data BotsGame = BotsGame { bgGameId :: String
+                         , bgStartTime :: Int
+                         }
+instance ToJSON BotsGame where
+  toJSON (BotsGame g _) = toJSON g
+
+data BotName = BotName { bnName :: String }
+instance FromJSON BotName where
+  parseJSON (Object v) =
+    BotName <$> v .: "botname"
   parseJSON _ = mzero

@@ -72,7 +72,7 @@
         font: 12px/14px sans-serif;
       }
     }
-    .make-public, .copy {
+    .make-public, .copy, .invite-bot {
       position: relative;
       top: -1px;
       display: inline-block;
@@ -88,6 +88,9 @@
       &:hover {
         background: rgba(#5784bf, .8);
       }
+    }
+    .make-public, .invite-bot {
+      margin-right: 10px;
     }
   }
 }

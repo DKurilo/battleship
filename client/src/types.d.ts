@@ -23,6 +23,10 @@ export type Rule = {
   id: string;
   order: number;
 }
+export type Bot = {
+  name: string;
+  rules: Array<string>;
+}
 export type Message = {
   name: string;
   message: string;
@@ -53,7 +57,7 @@ export type Person = {
   new?: boolean;
 }
 export type Turn = 'notready'|'config'|'owner'|'player'|'owner_win'|'player_win';
-export type Mode = 'pre'|'init'|'create'|'join'|'loading'|'game'|'make_public'|'are_you_sure';
+export type Mode = 'pre'|'init'|'create'|'join'|'loading'|'game'|'make_public'|'invite_bot'|'are_you_sure';
 export type You = 'owner'|'player'|'guest';
 export type BoardType = "right"|"left";
 export type Game = {
@@ -71,6 +75,7 @@ export type Game = {
 }
 export type Battleship = {
   rules?: Array<Rule>;
+  bots?: Array<Bot>;
   mode: Mode;
   gameid?: string;
   session?: string;

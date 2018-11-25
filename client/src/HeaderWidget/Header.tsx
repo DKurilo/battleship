@@ -42,10 +42,17 @@ const makePublicButton: (p: any) => React.ReactElement<any> = R.ifElse(R.view(R.
   x => <div className="make-public" onClick={x.makePublic}>Make public</div>
 );
 
+const inviteBotButton: (p: any) => React.ReactElement<any> = R.ifElse(
+  R.compose(R.isNil, R.view(R.lensPath(['game', 'isPublic']))),
+  _ => <React.Fragment />,
+  x => <div className="invite-bot" onClick={x.inviteBot}>Invite bot</div>
+);
+
 export const Header = (props:{close: (e:React.MouseEvent<HTMLDivElement>) => any,
                               rules: Types.Rule,
                               game: Types.Game,
                               makePublic: (e:React.MouseEvent<HTMLDivElement>) => any,
+                              inviteBot: (e:React.MouseEvent<HTMLDivElement>) => any,
                               session:string}) => 
   <div className={styles.Header}>
     <div className="close" onClick={props.close} />
@@ -62,6 +69,6 @@ export const Header = (props:{close: (e:React.MouseEvent<HTMLDivElement>) => any
         <input type="text" className="link" ref={setLinkElement} value={getLink(props.game.game)} contenteditable="true"/>
         <div className="copy" onClick={copyLink}>Copy</div>
       </div>
-      {Comp(makePublicButton).fold(props)}
+      {Comp(makePublicButton).concat(Comp(inviteBotButton)).fold(props)}
     </div>
   </div>

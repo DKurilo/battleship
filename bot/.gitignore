@@ -19,6 +19,3 @@ cabal.config
 *.hp
 *.log
 .DS_Store
-localhost_certificate.pem
-localhost_key.pem
-bots.json
