@@ -5,7 +5,9 @@
 module Main where
 
 import Data.Configurator
+import Data.Aeson
 import Play (play)
+import Types (Rule)
 
 main :: IO ()
 main = do
@@ -17,4 +19,7 @@ main = do
       mongoDb <- (require conf "battleshipbot.mongo.db")::(IO String)
       apiurl <- (require conf "battleshipbot.battleship")::(IO String)
       botname <- (require conf "battleshipbot.botname")::(IO String)
-      play repeatDelay apiurl botname mongoHost mongoUser mongoPass mongoDb
+      rulesPath <- (require conf "battleshipbot.rules")::(IO String)
+      mbrules <- (decodeFileStrict rulesPath :: IO (Maybe [Rule]))
+      case mbrules of Just rules -> play repeatDelay apiurl botname mongoHost mongoUser mongoPass mongoDb rules
+                      _ -> putStrLn "Can't find rules!"

@@ -1021,7 +1021,7 @@ isGood :: [[Int]] -> Rule -> Bool
 isGood sm (Rule rid _ _ ships _) = (isSane sm) && (rid == "free" || (isShipsByRule sm ships) && (noDiagonalShips sm))
 
 isSane :: [[Int]] -> Bool
-isSane m = (mapHeight == length m) && (and [l==mapWidth | l <- [length ra | ra <- m]])
+isSane m = (mapWidth == length m) && (and [l==mapHeight | l <- [length ra | ra <- m]])
 
 isShipsByRule :: [[Int]] -> [[Int]] -> Bool
 isShipsByRule sm r = isProjectionByRule r (getProjection sm) (getProjection . transpose $ sm)

@@ -9,4 +9,5 @@ battleshipbot
   battleship = "https://127.0.0.1:9443/api/games"
   botname = "defaultbot"
   repeat = 1
+  rules = "rules.json"
 }
