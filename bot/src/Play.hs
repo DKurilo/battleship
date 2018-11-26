@@ -48,11 +48,12 @@ processGame url pipe db rules gid = do
                              res <- fmap responseBody $ httpLbs request manager
                              let mbgi = decode $ res :: Maybe GameInfo
                              let getShips rn = [s | (Rule n s) <- rules, n == rn]
-                             case mbgi of (Just (GameInfo r "config" em False)) -> do -- need to send map
-                                                case (getShips r) of [] -> return ()
-                                                                     (shipset:_) -> sendShips 
-                                                                                      (url ++ "/" ++ gid ++ "/" ++ session ++ "setmap")
-                                                                                      shipset
+                             case mbgi of (Just (GameInfo r "config" em False)) -> do
+                                                case (getShips r) of 
+                                                  [] -> return ()
+                                                  (shipset:_) -> sendShips 
+                                                                      (url ++ "/" ++ gid ++ "/" ++ session ++ "/setmap")
+                                                                      shipset
                                           (Just (GameInfo r "player" em _)) -> return () -- need to shoot
                                           _ -> return ()
                      _ -> do
@@ -60,7 +61,8 @@ processGame url pipe db rules gid = do
                        let request = request' { requestHeaders = [ (hContentType, "application/json")
                                                                  ]
                                               , method = "POST"
-                                              , requestBody = RequestBodyLBS $ encode $ ConnectInfo "ILYA" "Hi, I'm bot! It's a pleasure to play with you!"
+                                              , requestBody = RequestBodyLBS $ encode $ 
+                                                    ConnectInfo "ILYA" "Hi, I'm bot! It's a pleasure to play with you!"
                                               }
                        let settings = mkManagerSettings (TLSSettingsSimple True False False) Nothing
                        manager <- newManager settings
@@ -122,9 +124,13 @@ placeShipInXY (Point x y) s sea = (take x sea) ++
 
 getRandomCoord :: Int -> [[Int]] -> IO Point
 getRandomCoord s sea = do
-  let coords = concat [[Point x y | (v,y) <- zip (take (length l - s) l) [0,1..]] | (l,x) <- zip sea [0,1..]]
+  let coords = concat [[Point x y | (v,y) <- zip (take (length l - s) l) [0,1..], v==0, checkPoint x y s sea] | 
+                        (l,x) <- zip sea [0,1..]]
   rand <- getStdRandom (randomR (0,length coords - 1))
   return . head $ drop rand coords
+
+checkPoint :: Int -> Int -> Int -> [[Int]] -> Bool
+checkPoint x y s sea = and $ map (==0) $ concat $ map (take (s+2) . drop (y-1)) (take 3 . drop (x-1) $ sea)
 
 play :: Int -> String -> String -> String -> String -> String -> String -> [Rule] -> IO()
 play repeatDelay apiurl botname smongoHost smongoUser smongoPass smongoDb rules = do
