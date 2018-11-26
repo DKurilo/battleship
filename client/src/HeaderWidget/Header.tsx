@@ -43,9 +43,9 @@ const makePublicButton: (p: any) => React.ReactElement<any> = R.ifElse(R.view(R.
 );
 
 const inviteBotButton: (p: any) => React.ReactElement<any> = R.ifElse(
-  R.compose(R.isNil, R.view(R.lensPath(['game', 'isPublic']))),
-  _ => <React.Fragment />,
-  x => <div className="invite-bot" onClick={x.inviteBot}>Invite bot</div>
+  R.compose(R.isNil, R.view(R.lensPath(['game', 'player', 'name']))),
+  x => <div className="invite-bot" onClick={x.inviteBot}>Invite bot</div>,
+  _ => <React.Fragment />
 );
 
 export const Header = (props:{close: (e:React.MouseEvent<HTMLDivElement>) => any,
