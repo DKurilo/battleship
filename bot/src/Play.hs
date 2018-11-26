@@ -4,6 +4,7 @@
 module Play where
 
 import qualified Data.Text as T
+import Control.Exception
 import Control.Concurrent (threadDelay)
 import Types
 import Database.MongoDB
@@ -13,7 +14,7 @@ import Network.Connection
 import Network.HTTP.Types
 import Network.HTTP.Conduit
 import Data.Aeson
-import Data.Bson
+import Data.Bson as BS
 import System.Random
 import Data.List
 
@@ -48,13 +49,24 @@ processGame url pipe db rules gid = do
                              res <- fmap responseBody $ httpLbs request manager
                              let mbgi = decode $ res :: Maybe GameInfo
                              let getShips rn = [s | (Rule n s) <- rules, n == rn]
-                             case mbgi of (Just (GameInfo r "config" em False)) -> do
+                             case mbgi of (Just (GameInfo r "config" _ False)) -> do
                                                 case (getShips r) of 
                                                   [] -> return ()
                                                   (shipset:_) -> sendShips 
                                                                       (url ++ "/" ++ gid ++ "/" ++ session ++ "/setmap")
                                                                       shipset
-                                          (Just (GameInfo r "player" em _)) -> return () -- need to shoot
+                                          (Just (GameInfo r "player" em _)) -> do
+                                                case (getShips r) of 
+                                                  [] -> return ()
+                                                  (shipset:_) -> do
+                                                        mbx <- try (BS.look "x" game) :: IO (Either SomeException BS.Value)
+                                                        let url' = (url ++ "/" ++ gid ++ "/" ++ session ++ "/shoot")
+                                                        case mbx of 
+                                                          Right (BS.Int32 x') -> do -- we have unfinished ship
+                                                                let x = (fromIntegral x') :: Int
+                                                                let y = (at "y" game) :: Int
+                                                                nextShot url' pipe db shipset (Point x y) em
+                                                          _ -> newShot url' pipe db shipset em
                                           _ -> return ()
                      _ -> do
                        request' <- parseRequest $ url ++ "/" ++ gid ++ "/connect/player"
@@ -75,6 +87,44 @@ processGame url pipe db rules gid = do
                                              performAction pipe db $ MQ.insert "games" gameinfo
                                              return ()
                                        _ -> return ()
+
+-- need to figure out where to shoot.
+-- In case miss, save latest shot in DB.
+-- In case sank, remove everything from DB and perform new shot.
+nextShot :: String -> Pipe -> Database -> [[Int]] -> Point -> [[Int]] -> IO ()
+nextShot url pipe db ships (Point x y) sea = do
+      return ()
+
+-- need to find living longest ship, places where it can have start and get random from these places
+newShot :: String -> Pipe -> Database -> [[Int]] -> [[Int]] -> IO ()
+newShot url pipe db ships sea = do
+      let longest = getLongestSize ships sea
+      let coords = (getAllCoordsForShip longest sea) ++ 
+                   (map (\(Point x y) -> Point y x) (getAllCoordsForShip longest $ transpose sea))
+      rand <- getStdRandom (randomR (0,length coords - 1))
+      let coord = head $ drop rand coords ++ [Point 0 0]
+      request' <- parseRequest $ url
+      let request = request' { requestHeaders = [ (hContentType, "application/json")
+                                                ]
+                             , method = "POST"
+                             , requestBody = RequestBodyLBS $ encode $ coord
+                             }
+      let settings = mkManagerSettings (TLSSettingsSimple True False False) Nothing
+      manager <- newManager settings
+      res <- fmap responseBody $ httpLbs request manager
+      let result = decode $ res :: Maybe String
+      case result of Just "hit" -> nextShot url pipe db ships coord $ placeShipInXY coord 1 sea
+                     Just "sank" -> newShot url pipe db ships $ placeShipInXY coord 1 sea
+                     _ -> return ()
+
+getLongestSize :: [[Int]] -> [[Int]] -> Int
+getLongestSize ships sea = head $ [s | (s:a:_) <- ships, a > (length [s' | s' <- proj, s'==s])] ++ [1]
+                           where proj = (getProjection sea) ++ (getProjection . transpose $ sea)
+
+getProjection :: [[Int]] -> [Int]
+getProjection m = concat $ [foldr (\x (y:ys) -> case x of 
+                                                   0 -> [0] ++ (y:ys)
+                                                   _ -> (y+1:ys)) [0] $ l | l <- m]
 
 initSea :: [[Int]]
 initSea = replicate mapHeight $ replicate mapWidth 0
@@ -124,13 +174,22 @@ placeShipInXY (Point x y) s sea = (take x sea) ++
 
 getRandomCoord :: Int -> [[Int]] -> IO Point
 getRandomCoord s sea = do
-  let coords = concat [[Point x y | (v,y) <- zip (take (length l - s) l) [0,1..], v==0, checkPoint x y s sea] | 
-                        (l,x) <- zip sea [0,1..]]
+  let coords = getAllCoordsForShip s sea
   rand <- getStdRandom (randomR (0,length coords - 1))
   return . head $ drop rand coords
 
-checkPoint :: Int -> Int -> Int -> [[Int]] -> Bool
-checkPoint x y s sea = and $ map (==0) $ concat $ map (take (s+2) . drop (y-1)) (take 3 . drop (x-1) $ sea)
+getAllCoordsForShip :: Int -> [[Int]] -> [Point]
+getAllCoordsForShip s sea = concat
+                            [[Point x y | (v,y) <- zip (take (length l - s) l) [0,1..], v==0, checkShipsNear x y s sea] | 
+                            (l,x) <- zip sea [0,1..]]
+
+checkShipsNear :: Int -> Int -> Int -> [[Int]] -> Bool
+checkShipsNear x y s sea = and $ map (\v -> v==0 || v==2) $ concat $ 
+                           map (take (s+2) . drop (y-1)) (take 3 . drop (x-1) $ sea)
+
+checkIfEmpty :: Int -> Int -> Int -> [[Int]] -> Bool
+checkIfEmpty x y s sea = and $ map (==0) $ concat $ 
+                           map (take (s+2) . drop (y-1)) (take 1 . drop x $ sea)
 
 play :: Int -> String -> String -> String -> String -> String -> String -> [Rule] -> IO()
 play repeatDelay apiurl botname smongoHost smongoUser smongoPass smongoDb rules = do

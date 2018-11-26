@@ -8,7 +8,7 @@ import Control.Monad
 
 data Point = Point { px :: Int,
                      py :: Int
-                   }
+                   } deriving (Show)
 instance FromJSON Point where
   parseJSON (Object v) =
     Point <$> v .: "x"
