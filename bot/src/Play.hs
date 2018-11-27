@@ -65,8 +65,8 @@ processGame url pipe db rules gid = do
                                                           Right (BS.Int32 x') -> do -- we have unfinished ship
                                                                 let x = (fromIntegral x') :: Int
                                                                 let y = (at "y" game) :: Int
-                                                                nextShot url' pipe db shipset (Point x y) em
-                                                          _ -> newShot url' pipe db shipset em
+                                                                nextShot gid url' pipe db shipset (Point x y) em
+                                                          _ -> newShot gid url' pipe db shipset em
                                           _ -> return ()
                      _ -> do
                        request' <- parseRequest $ url ++ "/" ++ gid ++ "/connect/player"
@@ -90,14 +90,89 @@ processGame url pipe db rules gid = do
 
 -- need to figure out where to shoot.
 -- In case miss, save latest shot in DB.
--- In case sank, remove everything from DB and perform new shot.
-nextShot :: String -> Pipe -> Database -> [[Int]] -> Point -> [[Int]] -> IO ()
-nextShot url pipe db ships (Point x y) sea = do
-      return ()
+-- In case sank, set x and y as undefined in DB and perform new shot.
+nextShot :: String -> String -> Pipe -> Database -> [[Int]] -> Point -> [[Int]] -> IO ()
+nextShot gid url pipe db ships (Point x y) sea = do
+      let dYDown = case (findShift . drop (y + 1) . head . drop x $ sea) of 
+            Just n -> D Y (n == 0) $ Point x (y + n + 1)
+            Nothing -> NOWAY
+      let dYUp = case (findShift . reverse . take y . head . drop x $ sea) of 
+            Just n -> D Y (n == 0) $ Point x (y - n - 1)
+            Nothing -> NOWAY
+      let tsea = transpose sea
+      let dXDown = case (findShift . drop (x + 1) . head . drop y $ tsea) of 
+            Just n -> D X (n == 0) $ Point (x + n + 1) y
+            Nothing -> NOWAY
+      let dXUp = case (findShift . reverse . take x . head . drop y $ tsea) of 
+            Just n -> D X (n == 0) $ Point (x - n - 1) y
+            Nothing -> NOWAY
+      let coords = filter (checkShoot sea) $ concat . map 
+            (\d -> case d of NOWAY -> []
+                             D _ _ p -> [p]) $ foldr addDirection [] [dYDown, dYUp, dXDown, dXUp]
+      rand <- getStdRandom (randomR (0,length coords - 1))
+      let coord = head $ drop rand coords ++ [Point 0 0]
+      request' <- parseRequest $ url
+      let request = request' { requestHeaders = [ (hContentType, "application/json")
+                                                ]
+                             , method = "POST"
+                             , requestBody = RequestBodyLBS $ encode $ coord
+                             }
+      let settings = mkManagerSettings (TLSSettingsSimple True False False) Nothing
+      manager <- newManager settings
+      res <- fmap responseBody $ httpLbs request manager
+      let result = decode $ res :: Maybe String
+      case result of Just "hit" -> nextShot gid url pipe db ships coord $ placeShipInXY coord 1 sea
+                     Just "sank" -> do
+                           let act = [(
+                                        [
+                                         "game" =: gid
+                                        ]::Selector,
+                                        [
+                                          "$set" =: ["x" =: ("Nothing"::T.Text), "y" =: ("Nothing"::T.Text)]
+                                        ]::Document,
+                                        [ ]::[UpdateOption]
+                                     )]
+                           performAction pipe db $ MQ.updateAll "games" act
+                           newShot gid url pipe db ships $ placeShipInXY coord 1 sea
+                     Just "miss" -> do
+                           let act = [(
+                                        [
+                                         "game" =: gid
+                                        ]::Selector,
+                                        [
+                                          "$set" =: ["x" =: x, "y" =: y]
+                                        ]::Document,
+                                        [ ]::[UpdateOption]
+                                     )]
+                           performAction pipe db $ MQ.updateAll "games" act
+                           return ()
+                     _ -> return ()
+
+addDirection :: Direction -> [Direction] -> [Direction]
+addDirection NOWAY ds = ds
+addDirection (D a False p) ds = [D a False p] ++ 
+                                (filter (\d -> case d of 
+                                  NOWAY -> False
+                                  D a' isNext p' -> a'==a) ds)
+addDirection (D a True p) ds = [D a True p] ++ ds
+
+checkShoot :: [[Int]] -> Point -> Bool
+checkShoot sea (Point x y) = (<=1) $ length $ filter (/=True) $ getRegion x y 1 sea
+
+findShift :: [Int] -> Maybe Int
+findShift = findShift' (Just 0)
+
+findShift' :: Maybe Int -> [Int] -> Maybe Int
+findShift' Nothing _ = Nothing
+findShift' _ [] = Nothing
+findShift' _ (2:xs) = Nothing
+findShift' (Just n) (0:3:_) = Nothing
+findShift' (Just n) (0:_) = Just n
+findShift' (Just n) (_:xs) = findShift' (Just $ n+1) xs
 
 -- need to find living longest ship, places where it can have start and get random from these places
-newShot :: String -> Pipe -> Database -> [[Int]] -> [[Int]] -> IO ()
-newShot url pipe db ships sea = do
+newShot :: String -> String -> Pipe -> Database -> [[Int]] -> [[Int]] -> IO ()
+newShot gid url pipe db ships sea = do
       let longest = getLongestSize ships sea
       let coords = (getAllCoordsForShip longest sea) ++ 
                    (map (\(Point x y) -> Point y x) (getAllCoordsForShip longest $ transpose sea))
@@ -113,8 +188,8 @@ newShot url pipe db ships sea = do
       manager <- newManager settings
       res <- fmap responseBody $ httpLbs request manager
       let result = decode $ res :: Maybe String
-      case result of Just "hit" -> nextShot url pipe db ships coord $ placeShipInXY coord 1 sea
-                     Just "sank" -> newShot url pipe db ships $ placeShipInXY coord 1 sea
+      case result of Just "hit" -> nextShot gid url pipe db ships coord $ placeShipInXY coord 1 sea
+                     Just "sank" -> newShot gid url pipe db ships $ placeShipInXY coord 1 sea
                      _ -> return ()
 
 getLongestSize :: [[Int]] -> [[Int]] -> Int
@@ -184,8 +259,15 @@ getAllCoordsForShip s sea = concat
                             (l,x) <- zip sea [0,1..]]
 
 checkShipsNear :: Int -> Int -> Int -> [[Int]] -> Bool
-checkShipsNear x y s sea = and $ map (\v -> v==0 || v==2) $ concat $ 
-                           map (take (s+2) . drop (y-1)) (take 3 . drop (x-1) $ sea)
+checkShipsNear x y s sea = and $ getRegion x y s sea
+
+getRegion :: Int -> Int -> Int -> [[Int]] -> [Bool]
+getRegion x y s sea = map (\v -> v==0 || v==2) $ concat $ 
+                      map (take (s+1+not0 y) . drop (y-1)) (take (2 + not0 x) . drop (x-1) $ sea)
+
+not0 :: Int -> Int
+not0 n | n == 0 = 0
+       | otherwise = 1
 
 checkIfEmpty :: Int -> Int -> Int -> [[Int]] -> Bool
 checkIfEmpty x y s sea = and $ map (==0) $ concat $ 

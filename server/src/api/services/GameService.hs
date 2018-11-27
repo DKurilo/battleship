@@ -33,7 +33,7 @@ data GameService = GameService { }
 CL.makeLenses ''GameService
 
 gameTimeout :: Int
-gameTimeout = 3600
+gameTimeout = 3600 * 10000
 
 mapWidth :: Int
 mapWidth = 10
@@ -85,7 +85,7 @@ getPublicGamesList mongoHost mongoUser mongoPass mongoDb = do
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse $ setHeader "Content-Type" "application/json"
-  time <- liftIO $ round <$> getPOSIXTime
+  time <- liftIO $ round . (* 10000) <$> getPOSIXTime
   let action = rest =<< MQ.find (MQ.select ["date" =: ["$gte" =: time - gameTimeout], "public" =: True] "games") 
                                 {MQ.sort = ["date" =: -1]}
   games <- a $ action
@@ -112,7 +112,7 @@ getBotsGamesList mongoHost mongoUser mongoPass mongoDb = do
                                 let bid = B.unpack botid
                                 pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
                                 let a action = liftIO $ performAction pipe mongoDb action
-                                time <- liftIO $ round <$> getPOSIXTime
+                                time <- liftIO $ round . (* 10000) <$> getPOSIXTime
                                 let action = rest =<< MQ.find (MQ.select
                                                                   ["date" =: ["$gte" =: time - gameTimeout]]
                                                                   (T.pack $ "botgames_" ++ bid))
@@ -183,7 +183,7 @@ createGame mongoHost mongoUser mongoPass mongoDb rulePath = do
   case user of Just (NewGameUser name message rules) -> do
                  gameId <- liftIO $ UUID.toString <$> nextRandom
                  sessionId <- liftIO $ UUID.toString <$> nextRandom
-                 time <- liftIO $ round <$> getPOSIXTime
+                 time <- liftIO $ round . (* 10000) <$> getPOSIXTime
                  crules <- liftIO $ currentRulesId rules rulePath
                  let game = [
                               "game" =: gameId,
@@ -219,7 +219,7 @@ createGame mongoHost mongoUser mongoPass mongoDb rulePath = do
 --   {message}
 sendMap :: Host -> Username -> Password -> Database -> FilePath -> SN.Handler b GameService ()
 sendMap mongoHost mongoUser mongoPass mongoDb rulePath = do
-  time <- liftIO $ round <$> getPOSIXTime
+  time <- liftIO $ round . (* 10000) <$> getPOSIXTime
   modifyResponse $ setHeader "Content-Type" "application/json"
   pgame <- getParam "gameid"
   session <- getParam "session"
@@ -317,7 +317,7 @@ sendMap mongoHost mongoUser mongoPass mongoDb rulePath = do
 --   {message}
 getStatus :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
 getStatus mongoHost mongoUser mongoPass mongoDb = do
-  time <- liftIO $ round <$> getPOSIXTime
+  time <- liftIO $ round . (* 10000) <$> getPOSIXTime
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse $ setHeader "Content-Type" "application/json"
@@ -478,7 +478,7 @@ inviteBot mongoHost mongoUser mongoPass mongoDb botsPath = do
 --   {error}
 setPublic :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
 setPublic mongoHost mongoUser mongoPass mongoDb = do
-  time <- liftIO $ round <$> getPOSIXTime
+  time <- liftIO $ round . (* 10000) <$> getPOSIXTime
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse $ setHeader "Content-Type" "application/json"
@@ -542,7 +542,7 @@ setPublic mongoHost mongoUser mongoPass mongoDb = do
 --   {message}
 connectGamePlayer :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
 connectGamePlayer mongoHost mongoUser mongoPass mongoDb = do
-  time <- liftIO $ round <$> getPOSIXTime
+  time <- liftIO $ round . (* 10000) <$> getPOSIXTime
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse $ setHeader "Content-Type" "application/json"
@@ -593,7 +593,7 @@ connectGamePlayer mongoHost mongoUser mongoPass mongoDb = do
 
 connectGameGuest :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
 connectGameGuest mongoHost mongoUser mongoPass mongoDb = do
-  time <- liftIO $ round <$> getPOSIXTime
+  time <- liftIO $ round . (* 10000) <$> getPOSIXTime
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse $ setHeader "Content-Type" "application/json"
@@ -624,7 +624,7 @@ connectGameGuest mongoHost mongoUser mongoPass mongoDb = do
                              , "name" =: name
                              , "session" =: sessionId
                              , "time" =: time
-                             , "message" =: ("joined as a guest!")
+                             , "message" =: "joined as a guest!"
                              ]::Document
                   a $ MQ.insert "chats" chat
                   writeLBS $ encode $ SessionInfo game sessionId
@@ -657,7 +657,7 @@ connectGameGuest mongoHost mongoUser mongoPass mongoDb = do
 --   {message}
 shoot :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
 shoot mongoHost mongoUser mongoPass mongoDb = do
-  time <- liftIO $ round <$> getPOSIXTime
+  time <- liftIO $ round . (* 10000) <$> getPOSIXTime
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse $ setHeader "Content-Type" "application/json"
@@ -754,7 +754,7 @@ shotLabel x y = concat [take 1 . drop x $ "ABCDEFGHIJKLMNOPQRSTUVWXYZ", show . (
 --   }
 sendMessage :: Host -> Username -> Password -> Database -> SN.Handler b GameService ()
 sendMessage mongoHost mongoUser mongoPass mongoDb = do
-  time <- liftIO $ round <$> getPOSIXTime
+  time <- liftIO $ round . (* 10000) <$> getPOSIXTime
   pipe <- liftIO $ connectAndAuth mongoHost mongoUser mongoPass mongoDb
   let a action = liftIO $ performAction pipe mongoDb action
   modifyResponse $ setHeader "Content-Type" "application/json"
@@ -898,7 +898,7 @@ getBots botsPath = do
 fillRights :: Pipe -> Database -> String -> Maybe String -> IO GameRights
 fillRights pipe mongoDb game session = do
   let a action = liftIO $ performAction pipe mongoDb action
-  time <- liftIO $ round <$> getPOSIXTime
+  time <- liftIO $ round . (* 10000) <$> getPOSIXTime
   game <- a $ MQ.findOne (MQ.select ["date" =: ["$gte" =: time - gameTimeout], "game" =: game] "games")
   let turn v = case v of Right (BS.Array l) -> getTurn $ map (\v -> case v of (BS.String s) -> T.unpack s 
                                                                               _ -> "noop") l

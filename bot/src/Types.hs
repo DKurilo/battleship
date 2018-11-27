@@ -72,3 +72,7 @@ instance FromJSON Rule where
     Rule <$> v .: "name"
          <*> v .: "ships"
   parseJSON _ = mzero
+
+data Axis = X | Y deriving (Eq)
+
+data Direction = D {dAxis :: Axis, dIsNext :: Bool, dP :: Point} | NOWAY

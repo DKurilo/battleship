@@ -25,5 +25,6 @@ cabal install --builddir=dist.prod
 cabal build --builddir=dist.prod
 
 cp ./dist.prod/build/battleship-bot/battleship-bot ../deploy/out/
+cp ./rules.json ../deploy/out/rules.bot.json
 
 cd ..
