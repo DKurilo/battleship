@@ -1052,9 +1052,9 @@ isProjectionByRule rs p pt = and [checkRule (head r) (head . tail $ r) | r <- rs
 -- False
 noDiagonalShips :: [[Int]] -> Bool
 noDiagonalShips sm = not $ isIntersected sm ((shiftUp [0]) . (shiftLeft 0) $ sm) 
-                        && isIntersected sm ((shiftUp [0]) . (shiftRight 0) $ sm)
-                        && isIntersected sm ((shiftDown [0]) . (shiftLeft 0) $ sm)
-                        && isIntersected sm ((shiftDown [0]) . (shiftRight 0) $ sm)
+                        || isIntersected sm ((shiftUp [0]) . (shiftRight 0) $ sm)
+                        || isIntersected sm ((shiftDown [0]) . (shiftLeft 0) $ sm)
+                        || isIntersected sm ((shiftDown [0]) . (shiftRight 0) $ sm)
 
 shiftUp :: a -> [a] -> [a]
 shiftUp z xs = tail xs ++ [z]

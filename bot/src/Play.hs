@@ -199,6 +199,7 @@ getLongestSize ships sea = head $ [s | (s:a:_) <- ships, a > (length [s' | s' <-
 getProjection :: [[Int]] -> [Int]
 getProjection m = concat $ [foldr (\x (y:ys) -> case x of 
                                                    0 -> [0] ++ (y:ys)
+                                                   2 -> [0] ++ (y:ys)
                                                    _ -> (y+1:ys)) [0] $ l | l <- m]
 
 initSea :: [[Int]]
