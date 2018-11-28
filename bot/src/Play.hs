@@ -74,7 +74,8 @@ processGame url pipe db rules gid = do
                                                                  ]
                                               , method = "POST"
                                               , requestBody = RequestBodyLBS $ encode $ 
-                                                    ConnectInfo "ILYA" "Hi, I'm bot! It's a pleasure to play with you!"
+                                                    ConnectInfo "Dr. Eggman" 
+                                                      "Now witness the beginning of the greatest empire of all time!"
                                               }
                        let settings = mkManagerSettings (TLSSettingsSimple True False False) Nothing
                        manager <- newManager settings
