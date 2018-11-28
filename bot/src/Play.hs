@@ -257,7 +257,7 @@ getRandomCoord s sea = do
 getAllCoordsForShip :: Int -> [[Int]] -> [Point]
 getAllCoordsForShip s sea = concat
                             [[Point x y | (v,y) <- zip 
-                            (take (length l - s + 1) l) [0,1..], v==0 && checkShipsNear x y s sea] | 
+                            (take (length l - s + 1) l) [0,1..], (checkIfEmpty x y s sea) && (checkShipsNear x y s sea)] | 
                             (l,x) <- zip sea [0,1..]]
 
 checkShipsNear :: Int -> Int -> Int -> [[Int]] -> Bool
@@ -272,8 +272,7 @@ not0 n | n == 0 = 0
        | otherwise = 1
 
 checkIfEmpty :: Int -> Int -> Int -> [[Int]] -> Bool
-checkIfEmpty x y s sea = and $ map (==0) $ concat $ 
-                           map (take (s+2) . drop (y-1)) (take 1 . drop x $ sea)
+checkIfEmpty x y s sea = and $ map (==0) $ take s . drop y . head . drop x $ sea
 
 play :: Int -> String -> String -> String -> String -> String -> String -> [Rule] -> IO()
 play repeatDelay apiurl botname smongoHost smongoUser smongoPass smongoDb rules = do
