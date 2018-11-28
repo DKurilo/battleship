@@ -256,7 +256,8 @@ getRandomCoord s sea = do
 
 getAllCoordsForShip :: Int -> [[Int]] -> [Point]
 getAllCoordsForShip s sea = concat
-                            [[Point x y | (v,y) <- zip (take (length l - s) l) [0,1..], v==0, checkShipsNear x y s sea] | 
+                            [[Point x y | (v,y) <- zip 
+                            (take (length l - s + 1) l) [0,1..], v==0 && checkShipsNear x y s sea] | 
                             (l,x) <- zip sea [0,1..]]
 
 checkShipsNear :: Int -> Int -> Int -> [[Int]] -> Bool
