@@ -408,7 +408,7 @@ const renderChat: (battle:Types.Battleship) => any =
   );
 
 const popupChangeName: (battle:Types.Battleship) => (e:React.FormEvent<HTMLInputElement>) => any = 
-  battle => e => e.currentTarget.value.length <= 10 && 
+  battle => e => e.currentTarget.value.length <= 20 && 
                  render(Object.assign(battle, {popupName: e.currentTarget.value, popupError: ''}));
 
 const popupChangeMessage: (battle:Types.Battleship) => (e:React.FormEvent<HTMLTextAreaElement>) => any = 
