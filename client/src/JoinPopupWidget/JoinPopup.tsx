@@ -33,7 +33,7 @@ export const JoinPopup = (props:{close: (e:React.MouseEvent<HTMLDivElement>) => 
         <input className="name" placeholder="Your name" value={props.name} onChange={props.changeName} required/>
       </div>
       <div className="block">
-        <textarea className="message" placeholder="Your message" value={props.message} 
+        <textarea className="message" placeholder="Your message (optional)" value={props.message} 
                   onChange={props.changeMessage} required/>
       </div>
       <div className="block">

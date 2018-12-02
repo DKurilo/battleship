@@ -189,7 +189,7 @@ createGame mongoHost mongoUser mongoPass mongoDb rulePath = do
                               "game" =: gameId,
                               "date" =: time,
                               "message" =: "",
-                              "owner" =: ["name" =: (take 10 name), "message" =: (take 140 message), "session" =: sessionId],
+                              "owner" =: ["name" =: (take 20 name), "message" =: (take 140 message), "session" =: sessionId],
                               "turn" =: ["notready"],
                               "public" =: False,
                               "rules" =: crules
@@ -560,7 +560,7 @@ connectGamePlayer mongoHost mongoUser mongoPass mongoDb = do
                                  "game" =: game
                                ]::Selector,
                                [
-                                 "$set" =: ["player" =: ["name" =: (take 10 name)
+                                 "$set" =: ["player" =: ["name" =: (take 20 name)
                                                         , "message" =: (take 140 message)
                                                         , "session" =: sessionId]
                                                         ],
@@ -612,7 +612,7 @@ connectGameGuest mongoHost mongoUser mongoPass mongoDb = do
                                  "game" =: game
                                ]::Selector,
                                [
-                                 "$push" =: ["guests" =: ["name" =: (take 10 name)
+                                 "$push" =: ["guests" =: ["name" =: (take 20 name)
                                                          , "message" =: (take 140 message)
                                                          , "session" =: sessionId]
                                                          ]

@@ -13,6 +13,7 @@ import { Chat } from './ChatWidget';
 import { CreateGamePopup } from './CreateGamePopupWidget';
 import { CreateGame } from './CreateGameWidget';
 import { Footer } from './FooterWidget';
+import { Help } from './HelpWidget';
 import { Guests } from './GuestsWidget';
 import { Header } from './HeaderWidget';
 import { JoinPopup } from './JoinPopupWidget';
@@ -262,6 +263,8 @@ const sea: (s:'right'|'left') => (g:Types.Battleship) => React.ReactElement<any>
     _ => <React.Fragment />
   );
 
+const help: (b:Types.Battleship) => React.ReactElement<any> = g => <Help rules={currentRules(g)}/>;
+
 const footer: (g:Types.Battleship) => React.ReactElement<any> = g => <Footer />;
 
 // Actions
@@ -316,13 +319,13 @@ const closeJoinPopup: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivEl
 const joinGame: (battle:Types.Battleship) => (r:string) => (_:React.MouseEvent<HTMLDivElement>) => any = 
   R.ifElse( R.allPass(
       R.map(x => R.compose(R.not, R.either(R.isEmpty, R.isNil), R.view(R.lensProp(x))),
-            ['popupName', 'popupMessage', 'join'])),
+            ['popupName', 'join'])),
     b => (r:string) => (_:React.MouseEvent<HTMLDivElement>) => ajax({
       url: `${b.api}/${b.join.game}/connect/${r}`,
       method: 'POST',
       body: {
         name: b.popupName,
-        message: b.popupMessage,
+        message: b.popupMessage?b.popupMessage:'',
       },
       headers: {
         'Content-Type': 'application/json',
@@ -353,13 +356,13 @@ const closeCreateGamePopup: (battle:Types.Battleship) => (_:React.MouseEvent<HTM
 const createGame: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
   R.ifElse( R.allPass(
       R.map(x => R.compose(R.not, R.either(R.isEmpty, R.isNil), R.view(R.lensProp(x))),
-            ['popupName', 'popupMessage', 'popupRules'])),
+            ['popupName', 'popupRules'])),
     b => (_:React.MouseEvent<HTMLDivElement>) => ajax({
       url: b.api,
       method: 'POST',
       body: {
         name: b.popupName,
-        message: b.popupMessage,
+        message: b.popupMessage?b.popupMessage:'',
         rules: b.popupRules,
       },
       headers: {
@@ -575,6 +578,7 @@ const render = (game: Types.Battleship) =>
       sea('left'),
       sea('right'),
       bottom([{name: 'Chat', component: chat} , {name: 'Who is here', component: guests}]),
+      help,
       footer,
       loader]
   )).fold(game), document.getElementById('root') as HTMLElement);

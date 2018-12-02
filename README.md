@@ -30,3 +30,7 @@ To run server `./run_ssl.sh` and then in browser: `https://localhost:9443/`
 
 To build server for linux you can use special docker image.  
 Just run `docker-composer up` from deploy folder. Check `./deploy/build.sh` for more information.  
+
+## ToDo
+
+Tests. For everything!  
