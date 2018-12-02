@@ -23,13 +23,23 @@
     top: -9px;
   }
   .right{
-    position: absolute;
-    top: 8px;
-    right: 0;
+    position: relative;
+    text-align: center;
+    @media (min-width: 780px) {
+      position: absolute;
+      top: 8px;
+      right: 0;
+      text-align: left;
+    }
     .rules-box {
       position: relative;
       display: inline-block;
       margin-right: 10px;
+      margin-bottom: 10px;
+      z-index: 5;
+      @media (min-width: 780px) {
+        margin-bottom: 0px;
+      }
       .rules {
         font-weight: bold;
         text-decoration: underline;
@@ -42,19 +52,24 @@
       }
       .rules-description {
         box-sizing: border-box;
-        position: absolute;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
+        position: fixed;
+        left: 0;
         display: none;
         width: 100%;
-        min-width: 400px;
         border-radius: 7px;
         padding: 5px;
         font: 10px/12px sans-serif;
         background: #fafcfe;
         border-color: #f4f8fc;
         color: #d16b00;
+        text-align: center;
+        @media (min-width: 780px) {
+          position: absolute;
+          top: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          min-width: 400px;
+        }
       }
     }
     .state {
@@ -62,10 +77,18 @@
       margin-right: 10px;
       display: inline-block;
       text-transform: uppercase;
+      margin-bottom: 10px;
+      @media (min-width: 780px) {
+        margin-bottom: 0px;
+      }
     }
     .copylink {
       display: inline-block;
       margin-right: 10px;
+      margin-bottom: 10px;
+      @media (min-width: 780px) {
+        margin-bottom: 0px;
+      }
       .link {
         width: 100px;
         margin-right: 4px;
@@ -83,10 +106,13 @@
       cursor: pointer;
       transition: background .8s linear .2s;
       color: white;
-      margin: 0;
+      margin: 0 0 10px 0;
       display: inline-block;
       &:hover {
         background: rgba(#5784bf, .8);
+      }
+      @media (min-width: 780px) {
+        margin-bottom: 0px;
       }
     }
     .make-public, .invite-bot {
