@@ -47,22 +47,22 @@ export const Help = (props:{rules: Rule|undefined}) =>
       <h3>Game screen</h3>
       <h4>Header</h4>
       In the header you can find:<br/>
-      Back button. Click to exit the game.
+      <b>Back button</b>. Click to exit the game.
       To return to the current game save your URL.
       Game is available for one hour after creation.<br/>
       Your name. Just in case you forgot it.<br/>
-      Current rules (underlined). 
+      <b>Current rules</b> (underlined). 
       Move your mouse over rules name or tap it to see the full description. 
       Tap on empty space to close rules.<br/>
-      Current state. Config or who is shooting now.<br/>
-      Link to current game and Copy button. 
+      <b>Current state</b>. Config or who is shooting now.<br/>
+      <b>Link to current game and Copy button.</b>
       Click on Copy button to copy link in clipboard to send it someone to play together.<br/>
-      Invite bot. Click to invite bot if it's possible for your game.<br/>
-      <h3>Sea</h3>
+      <b>Invite bot</b>. Click to invite bot if it's possible for your game.<br/>
+      <h4>Sea</h4>
       When in Config state you can place and remove your ships by clicking on the sea. When in play state you must shoot!
-      <h3>Chat</h3>
+      <h4>Chat</h4>
       Messages about the game or from your opponents. You can write your own messages. To greet your opponent, as example.
-      <h3>Who is here</h3>
+      <h4>Who is here</h4>
       List of persons who are watching your game. Everyone from this list can also write messages in chat.<br/><br/>
       Move your mouse out of this field or tap on empty space to close help section.
     </div>
