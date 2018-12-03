@@ -344,7 +344,7 @@ const joinGame: (battle:Types.Battleship) => (r:string) => (_:React.MouseEvent<H
       _ => renderInit(Object.assign(b, {mode: 'join', popupError: 'Something goes wrong. Try again later.'}))
     ),
     b => (r:string) => (_:React.MouseEvent<HTMLDivElement>) => 
-      render(Object.assign(b, {popupError: 'Name and message can\'t be empty.' }))
+      render(Object.assign(b, {popupError: 'Name can\'t be empty.' }))
   );
 
 const openCreateGamePopup: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
@@ -384,7 +384,7 @@ const createGame: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElemen
       _ => renderInit(Object.assign(b, {mode: 'create', popupError: 'Something goes wrong. Try again later.'}))
     ),
     b => (_:React.MouseEvent<HTMLDivElement>) => 
-      render(Object.assign(b, {mode: 'create', popupError: 'Name, message and rules can\'t be empty.' }))
+      render(Object.assign(b, {mode: 'create', popupError: 'Name and rules can\'t be empty.' }))
   );
 
 const renderGame: (battle:Types.Battleship) => any = 
