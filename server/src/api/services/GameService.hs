@@ -198,7 +198,7 @@ createGame mongoHost mongoUser mongoPass mongoDb rulePath = do
                  writeLBS $ encode $ NewGame gameId sessionId crules
                  modifyResponse $ setResponseCode 201
                Nothing -> do
-                 writeLBS . encode $ APIError "Name message and rules can't be empty!"
+                 writeLBS . encode $ APIError "Name and rules can't be empty!"
                  modifyResponse $ setResponseCode 400
   liftIO $ closeConnection pipe
 
@@ -587,7 +587,7 @@ connectGamePlayer mongoHost mongoUser mongoPass mongoDb = do
                   writeLBS . encode $ APIError "Can't connect as a player!"
                   modifyResponse $ setResponseCode 400
         _ -> do
-              writeLBS . encode $ APIError "Name and message are required!"
+              writeLBS . encode $ APIError "Name is required!"
               modifyResponse $ setResponseCode 400
   liftIO $ closeConnection pipe
 
@@ -633,7 +633,7 @@ connectGameGuest mongoHost mongoUser mongoPass mongoDb = do
                   writeLBS . encode $ APIError "Can't connect as a guest!"
                   modifyResponse $ setResponseCode 400
         _ -> do
-              writeLBS . encode $ APIError "Name and message are required!"
+              writeLBS . encode $ APIError "Name is required!"
               modifyResponse $ setResponseCode 400
   liftIO $ closeConnection pipe
 
