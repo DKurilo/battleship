@@ -41,8 +41,8 @@ export const Help = (props:{rules: Rule|undefined}) =>
       <a href="https://en.m.wikipedia.org/wiki/Battleship_(game)" target="_blank">Wikipedia page for Battleship Game.</a>
       <h2>Interface</h2>
       <h3>First screen</h3>
-      Create new game button. Click to start a new game.<br/>
-      List of games. There is the list of games that are public.
+      <b>Create new game button.</b> Click to start a new game.<br/>
+      <b>List of games.</b> There is the list of games that are public.
       For each game you can join as a guest or a player if another player didn't join yet.
       <h3>Game screen</h3>
       <h4>Header</h4>
