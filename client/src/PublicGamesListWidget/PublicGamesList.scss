@@ -26,7 +26,8 @@
       font-weight: bold;
     }
     .message {
-
+      text-overflow: ellipsis;
+      overflow: hidden;
     }
     .rules {
       position: relative;

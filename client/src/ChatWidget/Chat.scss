@@ -47,6 +47,9 @@
       }
       .text {
         display: inline-block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        width: 100%;
         &.hit {
           color: #d16b00;
         }

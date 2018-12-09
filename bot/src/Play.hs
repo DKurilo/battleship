@@ -94,17 +94,17 @@ processGame url pipe db rules gid = do
 -- In case sank, set x and y as undefined in DB and perform new shot.
 nextShot :: String -> String -> Pipe -> Database -> [[Int]] -> Point -> [[Int]] -> IO ()
 nextShot gid url pipe db ships (Point x y) sea = do
-      let dYDown = case (findShift . drop (y + 1) . head . drop x $ sea) of 
+      let dYDown = case (findShift . drop (y + 1) $ sea !! x) of 
             Just n -> D Y (n == 0) $ Point x (y + n + 1)
             Nothing -> NOWAY
-      let dYUp = case (findShift . reverse . take y . head . drop x $ sea) of 
+      let dYUp = case (findShift . reverse . take y $ sea !! x) of 
             Just n -> D Y (n == 0) $ Point x (y - n - 1)
             Nothing -> NOWAY
       let tsea = transpose sea
-      let dXDown = case (findShift . drop (x + 1) . head . drop y $ tsea) of 
+      let dXDown = case (findShift . drop (x + 1) $ tsea !! y) of 
             Just n -> D X (n == 0) $ Point (x + n + 1) y
             Nothing -> NOWAY
-      let dXUp = case (findShift . reverse . take x . head . drop y $ tsea) of 
+      let dXUp = case (findShift . reverse . take x $ tsea !! y) of 
             Just n -> D X (n == 0) $ Point (x - n - 1) y
             Nothing -> NOWAY
       let coords = filter (checkShoot sea) $ concat . map 
@@ -273,7 +273,7 @@ not0 n | n == 0 = 0
        | otherwise = 1
 
 checkIfEmpty :: Int -> Int -> Int -> [[Int]] -> Bool
-checkIfEmpty x y s sea = and $ map (==0) $ take s . drop y . head . drop x $ sea
+checkIfEmpty x y s sea = and $ map (==0) $ take s . drop y $ sea !! x
 
 play :: Int -> String -> String -> String -> String -> String -> String -> [Rule] -> IO()
 play repeatDelay apiurl botname smongoHost smongoUser smongoPass smongoDb rules = do

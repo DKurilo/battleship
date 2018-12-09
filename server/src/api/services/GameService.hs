@@ -1074,14 +1074,14 @@ isIntersected m1 m2 = or . concat $ [zipWith (\a b -> (a * b) > 0) x y | (x, y) 
 ---------------------------------
 -- check shot
 isShotSane :: [[Int]] -> Shot -> Bool
-isShotSane sm (Shot x y) = length sm > x && ((drop y) . (head . drop x) $ sm) /= []
+isShotSane sm (Shot x y) = length sm > x && ((drop y) $ sm !! x) /= []
 
 getCell :: [[Int]] -> Shot -> Int
-getCell sm (Shot x y) = (head . drop y) . (head . drop x) $ sm
+getCell sm (Shot x y) = sm !! x !! y
 
 isSink :: [[Int]] -> Shot -> Bool
-isSink m (Shot x y) = checkLine y (head . (drop x) $ m)
-                      && checkLine x (head . (drop y) $ (transpose m))
+isSink m (Shot x y) = (checkLine y $ m !! x)
+                      && (checkLine x $ (transpose m) !! y)
 
 checkLine :: Int -> [Int] -> Bool
 checkLine x xs = and $ (checkPartOfLine $ drop (x+1) $ xs) ++ 
