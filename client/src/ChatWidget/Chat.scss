@@ -23,6 +23,7 @@
       transition: background .8s linear .2s;
       color: white;
       margin: 0;
+      user-select: none;
       display: inline-block;
       &:hover {
         background: rgba(#5784bf, .8);

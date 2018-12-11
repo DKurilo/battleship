@@ -85,6 +85,7 @@
       transition: background .8s linear .2s;
       color: white;
       margin: 10px 1% 0;
+      user-select: none;
       &:hover {
         background: rgba(#5784bf, .8);
       }

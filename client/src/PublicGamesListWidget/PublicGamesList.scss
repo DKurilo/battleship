@@ -65,6 +65,7 @@
       color: white;
       margin: 10px 0 0;
       display: inline-block;
+      user-select: none;
       &:hover {
         background: rgba(#5784bf, .8);
       }
