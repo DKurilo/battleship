@@ -4,7 +4,7 @@ rm -rf ./deploy/out
 mkdir -p ./deploy/out
 
 cd /var/build/client
-yarn install
+yarn install --force
 yarn build:prod
 cp  -r ./build ../deploy/out/public
 
