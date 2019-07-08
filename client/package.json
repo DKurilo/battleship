@@ -5,11 +5,11 @@
   "homepage": "/",
   "dependencies": {
     "@jpavon/react-scripts-ts": "^1.2.2",
-    "@types/ramda": "^0.26.3",
+    "@types/ramda": "^0.26.15",
     "ramda": "^0.26.1",
-    "react": "^16.8.4",
-    "react-dom": "^16.8.4",
-    "rxjs": "^6.4.0"
+    "react": "^16.8.6",
+    "react-dom": "^16.8.6",
+    "rxjs": "^6.5.2"
   },
   "scripts": {
     "start": "react-scripts-ts start",
@@ -19,12 +19,12 @@
     "eject": "react-scripts-ts eject"
   },
   "devDependencies": {
-    "@types/jest": "^24.0.11",
-    "@types/node": "^11.11.4",
-    "@types/react": "^16.8.8",
-    "@types/react-dom": "^16.8.2",
+    "@types/jest": "^24.0.15",
+    "@types/node": "^12.6.0",
+    "@types/react": "^16.8.23",
+    "@types/react-dom": "^16.8.4",
     "cross-env": "^5.2.0",
-    "typescript": "^3.3.4000"
+    "typescript": "^3.5.2"
   },
   "browserslist": {
     "development": [
