@@ -8,11 +8,15 @@ yarn install --force
 yarn build:prod
 cp  -r ./build ../deploy/out/public
 
-cd ../server
 cabal update
-cabal install --builddir=dist.prod
 ghc-pkg unregister --force snap-server
-cabal install snap-server -fopenssl
+rm -rf /var/snap-server
+mkdir -p /var/snap-server && cd /var/snap-server
+git clone https://github.com/DKurilo/snap-server.git .
+cabal install -fopenssl --builddir=dist.prod --force-reinstalls
+cd /var/build/server
+cabal install --builddir=dist.prod
+cabal install snap --builddir=dist.prod --force-reinstalls
 cabal build --builddir=dist.prod
 
 cp ./dist.prod/build/battleship/battleship ../deploy/out/

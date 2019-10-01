@@ -14,9 +14,9 @@ RUN apt-get update \
 && apt-get install -y nodejs yarn\
 && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /usr/local/src/ghc && cd $_ && curl -L https://downloads.haskell.org/~ghc/8.4.3/ghc-8.4.3-x86_64-deb9-linux.tar.xz | tar xJ && cd ghc-8.4.3 && ./configure && make install
+RUN mkdir -p /usr/local/src/ghc && cd $_ && curl -L https://downloads.haskell.org/~ghc/8.8.1/ghc-8.8.1-x86_64-deb9-linux.tar.xz | tar xJ && cd ghc-8.8.1 && ./configure && make install
 
-RUN mkdir -p /usr/local/src/cabal && cd $_ && curl -L https://www.haskell.org/cabal/release/cabal-install-2.2.0.0/cabal-install-2.2.0.0-x86_64-unknown-linux.tar.gz | tar xz && mv ./cabal /usr/local/bin/
+RUN mkdir -p /usr/local/src/cabal && cd $_ && curl -L https://www.haskell.org/cabal/release/cabal-install-3.0.0.0/cabal-install-3.0.0.0-x86_64-unknown-linux.tar.gz | tar xz && mv ./cabal /usr/local/bin/
 
 VOLUME /var/build
 WORKDIR /var/build
