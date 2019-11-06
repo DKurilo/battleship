@@ -2,3 +2,5 @@ devel.cfg
 devel.bot.cfg
 .DS_Store
 deploy/out
+.stack-work
+stack.yaml.lock
