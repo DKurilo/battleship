@@ -1,4 +1,7 @@
 # Battleship
+
+[![Build Status](https://travis-ci.org/DKurilo/battleship.svg?branch=master)](https://travis-ci.org/DKurilo/battleship)
+
 Pure.. Functional..  
 Haskell + Snap + MongoDB + TypeScript + React  
 https://battleship-fp.com/  

@@ -1,0 +1,13 @@
+resolver: lts-12.26
+
+packages:
+  - server
+  - bot
+
+extra-deps:
+  - heist-1.1.0.1
+  - snap-1.1.2.0
+  - snap-loader-static-1.0.0.0
+  - map-syntax-0.3
+  - xmlhtml-0.2.5.2
+  - pwstore-fast-2.4.4
