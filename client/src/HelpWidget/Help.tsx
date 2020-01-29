@@ -38,7 +38,7 @@ export const Help = (props:{rules: Rule|undefined}) =>
       <img src={right} alt="Right!" />
       {Comp(currentRules).fold(props.rules)}
       <h3>Further reading</h3>
-      <a href="https://en.m.wikipedia.org/wiki/Battleship_(game)" target="_blank">Wikipedia page for Battleship Game.</a>
+      <a href="https://en.m.wikipedia.org/wiki/Battleship_(game)" target="_blank" rel="noopener noreferrer">Wikipedia page for Battleship Game.</a>
       <h2>Interface</h2>
       <h3>First screen</h3>
       <b>Create new game button.</b> Click to start a new game.<br/>
