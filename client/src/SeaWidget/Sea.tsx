@@ -4,8 +4,6 @@ import * as Types from '../types';
 
 import { Comp } from '../Utils';
 
-import styles from './Sea.scss';
-
 import './empty.png';
 import './hit.png';
 import './label-empty.png';
@@ -14,6 +12,7 @@ import './label-y.png';
 import './miss.png';
 import './ship.png';
 import './wait.png';
+import styles from './Sea.module.scss';
 
 const classByVal = ['empty', 'ship', 'miss', 'hit', 'wait'];
 
@@ -21,7 +20,7 @@ const bottom: (p: {you: string,
                    message: string
                    sendMap: ((_:React.MouseEvent<HTMLDivElement>) => any) | null}) => React.ReactElement<any> = 
   R.ifElse(R.compose(R.not, R.propEq('you', 'guest')),
-    x => <div className="bottom-block">
+    x => <div className={styles['bottom-block']}>
            {Comp(message).fold(x.message)}
            {Comp(sendMapButtton).fold(x.sendMap)}
          </div>,
@@ -30,21 +29,21 @@ const bottom: (p: {you: string,
 
 const message: (e:string) => React.ReactElement<any> = 
   R.ifElse(R.compose(R.not, R.either(R.isNil, R.isEmpty)),
-    x => <div className="message">{x}</div>,
+    x => <div className={styles.message}>{x}</div>,
     _ => <React.Fragment />
   );
 
 const sendMapButtton: (f:((_:React.MouseEvent<HTMLDivElement>) => any) | null) => React.ReactElement<any> = 
   R.ifElse(R.compose(R.not, R.isNil),
-    x => <div className="send" onClick={x}>Send map</div>,
+    x => <div className={styles.send} onClick={x}>Send map</div>,
     _ => <React.Fragment />
   );
 
 const cell: (i: number) => Types.Box = i => Comp(g =>
   <div 
-    className={'Cell ' + classByVal[g.line[i]] + 
-               (g.selectedPos === i || g.selected ? ' light' : '') +
-               (g.selectedPos === i && g.selected ? ' current' : '') }
+    className={`${styles.Cell} ${styles[classByVal[g.line[i]]]}` + 
+               (g.selectedPos === i || g.selected ? ` ${styles.light}` : '') +
+               (g.selectedPos === i && g.selected ? ` ${styles.current}` : '') }
     onClick={g.click?g.click(i):(_=>null)}
     onMouseEnter={g.enter(i)}
     onMouseLeave={g.leave(i)}
@@ -55,17 +54,17 @@ const seaLine: (s: Types.SeaLine) => Types.Box =
 const SeaLine = (props: any) => seaLine(props.line).fold(props);
 
 const rightLabels: (s: Types.SeaLine) => Types.Box = s => s.reduce((acc, i, y) => acc.concat(Comp(g =>
-    <div className={'Label y' + (g.selected && g.selectedPos && g.selectedPos.y === y ? ' active' : '') }>
+    <div className={`${styles.Label} ${styles.y}` + (g.selected && g.selectedPos && g.selectedPos.y === y ? ` ${styles.active}` : '') }>
       {y + 1}
     </div>
   )), Comp(g => <React.Fragment />));
 
 const rightLine: (s: Types.SeaLine) => Types.Box = s => Comp(g => 
-  <div className="SeaLine"><div className="Label empty" />{rightLabels(s).fold(g)}</div>);
+  <div className={styles.SeaLine}><div className={`${styles.Label} ${styles.empty}`} />{rightLabels(s).fold(g)}</div>);
 
 const sea: (s: Types.Sea) => Types.Box = s => s.reduce((acc, i, x) => acc.concat(Comp(g =>
-    <div className="SeaLine">
-      <div className={'Label x' + (g.selected && g.selectedPos && g.selectedPos.x === x ? ' active' : '')}>
+    <div className={styles.SeaLine}>
+      <div className={`${styles.Label} ${styles.x}` + (g.selected && g.selectedPos && g.selectedPos.x === x ? ` ${styles.active}` : '')}>
         {String.fromCharCode(65 + x)}
       </div>
       <SeaLine 
@@ -92,6 +91,6 @@ export const Sea = (props:{sendMap: ((_:React.MouseEvent<HTMLDivElement>) => any
                            message: string|undefined}) => 
   <div className={styles.Sea}>
     <h3>{props.name ? `${props.name}'s Sea` : 'Waiting...'}</h3>
-    <div className="Sea">{rightLine(props.sea[0]).concat(sea(props.sea)).fold(props)}</div>
+    <div className={styles.Sea}>{rightLine(props.sea[0]).concat(sea(props.sea)).fold(props)}</div>
     {Comp(bottom).fold(R.pickAll(['you','message','sendMap'], props))}
   </div>;

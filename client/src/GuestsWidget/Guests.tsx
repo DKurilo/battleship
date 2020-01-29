@@ -4,7 +4,7 @@ import * as Types from '../types';
 
 import { Comp, concat } from '../Utils';
 
-import styles from './Guests.scss';
+import styles from './Guests.module.scss';
 
 const empty: (_:any) => React.ReactElement<any> = _ => <React.Fragment />;
 
@@ -16,17 +16,17 @@ const h3: (t: string) => (o: any) => React.ReactElement<any> =
 
 const player: (p: Types.Person) => React.ReactElement<any> = 
   R.ifElse(R.both(R.compose(R.not, R.isNil), R.compose(R.not, R.isEmpty)),
-    x => <div className="player">
-            <div className="name">{x.name}</div>
-            <div className="message">{x.message}</div>
+    x => <div className={styles.player}>
+            <div className={styles.name}>{x.name}</div>
+            <div className={styles.message}>{x.message}</div>
           </div>,
     _ => <React.Fragment />);
 
 const guest: (p: Types.Person) => (_:any) => React.ReactElement<any> = 
   R.ifElse(R.compose(R.not, R.isNil),
-    x => (_: any) => <div className="guest">
-                <div className="name">{x.name}</div>
-                <div className="message">{x.message}</div>
+    x => (_: any) => <div className={styles.guest}>
+                <div className={styles.name}>{x.name}</div>
+                <div className={styles.message}>{x.message}</div>
               </div>,
     _ => (_: any) => <React.Fragment />);
 

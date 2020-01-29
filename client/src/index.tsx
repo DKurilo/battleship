@@ -81,7 +81,7 @@ const generateGameTitle: (g:Types.Game) => string = g => ({
   player_win: g.player ? g.player.name + ' won!' : 'Battleship Game',
 }[g.turn]);
 
-const generateTitle: (b:Types.Battleship) => string = b => ({
+const generateTitle: (b:Types.Battleship) => string = b => (({
   pre: 'Battleship Game',
   init: 'Battleship Game',
   create: 'Battleship Game',
@@ -90,7 +90,7 @@ const generateTitle: (b:Types.Battleship) => string = b => ({
   make_public: b.game ? generateGameTitle(b.game) : 'Battleship Game',
   invite_bot: b.game ? generateGameTitle(b.game) : 'Battleship Game',
   are_you_sure: b.game ? generateGameTitle(b.game) : 'Battleship Game',
-}[b.mode]);
+} as {[key: string]: string})[b.mode]);
 
 const currentRulesId: (b:Types.Battleship) => string = 
   R.ifElse(R.compose(R.compose(R.not, R.either(R.isEmpty, R.isNil), R.view(R.lensProp('game')))), 
@@ -108,7 +108,7 @@ const setWait: (s: Types.Sea) => (x:number) => (y:number) => Types.Sea =
       x === x1 ? v.map((v1, y1) => 
         y === y1 ? 4 : v1) : v)
 
-const seaOwner = {
+const seaOwner: {[key: string] : {[key: string]: string}} = {
   right: {
     player: 'owner',
     owner: 'player',
@@ -279,15 +279,16 @@ const init: (battle:Types.Battleship) => any = battle => ajax.getJSON(battle.api
           game => renderInit(Object.assign(battle, {mode: 'join', rules: rulesets, join:game})),
           _ => renderInit(Object.assign(battle, {mode: 'init', rules: rulesets}))),
         s => ajax.getJSON(`${battle.api}/${gameid}/${s}`).subscribe(
+          // @ts-ignore
           (game:Types.Game) => of(1).pipe(
             tap(_ => renderGame(Object.assign(battle, {
-                mode: 'game', rules: rulesets, gameid: gameid, session: s, bottom: 0, 
-                initSea: (game.you !== 'guest' && game[game.you] && game[game.you].map && game[game.you].map.length > 0 ? 
-                  game[game.you].map : initSea(X, Y)), game: game
+                mode: 'game', rules: rulesets, gameid: gameid, session: s, bottom: 0,
+                initSea: (game?.you && game.you !== 'guest' && game?.[game.you]?.map?.length ? 
+                  game?.[game.you].map : initSea(X, Y)), game: game
               }))),
             tap(_ => renderChat(battle))
           ).subscribe(),
-          _ => renderInit(Object.assign(battle, {mode: 'init', rules: rulesets})))
+          (_ : any) => renderInit(Object.assign(battle, {mode: 'init', rules: rulesets})))
       )(getSessionId())
     )(getGameId())
 );
@@ -308,13 +309,13 @@ const openJoinPopup: (battle:Types.Battleship) => (gameid: string) => any =
         Object.assign(battle, {mode: 'join', join: R.find(R.propEq('game', gameid))(battle.init)})
       ))
     ).subscribe(_ => 
-      history.pushState({}, 'Battleship Game', `${window.location.protocol}//${window.location.host}/games/${gameid}`));
+      window.history.pushState({}, 'Battleship Game', `${window.location.protocol}//${window.location.host}/games/${gameid}`));
 
 const closeJoinPopup: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
   battle => _ => 
     of(1).pipe(tap(_ => render(Object.assign(battle, {mode: 'init', join: undefined, popupError: undefined})))
     ).subscribe(_ => 
-      history.pushState({}, 'Battleship Game', `${window.location.protocol}//${window.location.host}/`));
+      window.history.pushState({}, 'Battleship Game', `${window.location.protocol}//${window.location.host}/`));
 
 const joinGame: (battle:Types.Battleship) => (r:string) => (_:React.MouseEvent<HTMLDivElement>) => any = 
   R.ifElse( R.allPass(
@@ -339,7 +340,7 @@ const joinGame: (battle:Types.Battleship) => (r:string) => (_:React.MouseEvent<H
         }))),
         tap(_ => renderChat(b))
       ).subscribe(_ => 
-        history.pushState({}, 'Battleship Game', 
+        window.history.pushState({}, 'Battleship Game', 
           `${window.location.protocol}//${window.location.host}/games/${r.response.game}/${r.response.session}`)),
       _ => renderInit(Object.assign(b, {mode: 'join', popupError: 'Something goes wrong. Try again later.'}))
     ),
@@ -377,7 +378,7 @@ const createGame: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElemen
           }))),
           tap(_ => renderChat(b))
         ).subscribe(
-          _ => history.pushState(
+          _ => window.history.pushState(
             {}, 'Battleship Game', 
             `${window.location.protocol}//${window.location.host}/games/${r.response.game}/${r.response.session}`)
         ),
@@ -422,7 +423,7 @@ const closeGame: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement
   battle => _ => of(1).pipe(tap(_ => renderInit(
       Object.assign(battle, {mode: 'init', popupError:'', message: ''})
     ))).subscribe(
-    _ => history.pushState({}, 'Battleship Game', `${window.location.protocol}//${window.location.host}/`));
+    _ => window.history.pushState({}, 'Battleship Game', `${window.location.protocol}//${window.location.host}/`));
 
 const openMakePublicPopup: (battle:Types.Battleship) => (_:React.MouseEvent<HTMLDivElement>) => any = 
   battle => _ => battle.gameid && render(Object.assign(battle, {mode: 'make_public', popupMessage: '', popupError: ''}));
@@ -474,7 +475,7 @@ const inviteBot: (battle:Types.Battleship) => (name:string) => (_:React.MouseEve
   }).subscribe(
     r => render(Object.assign(battle, {mode: 'game'})),
     r => render(Object.assign(battle, {popupError: r.response}))
-  ));
+  );
 
 const changeMySea: (battle:Types.Battleship) => (x:number) => (y:number) => (_:React.MouseEvent<HTMLDivElement>) => any =
   battle => x => y => _ => battle.initSea && battle.initSea[x] && battle.initSea[x][y] !== undefined ?

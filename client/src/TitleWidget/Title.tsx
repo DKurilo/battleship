@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import styles from './Title.scss';
+const styles = require('./Title.module.scss');
 
 export const Title = (props:any) => 
   <h1 className={styles.Title}>

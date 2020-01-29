@@ -1,44 +1,45 @@
 {
-  "name": "battleships",
-  "version": "1.0.0",
-  "private": false,
-  "homepage": "/",
+  "name": "battleship",
+  "version": "2.0.0",
   "license": "MIT",
+  "homepage": "https://battleship-fp.com/",
+  "private": false,
+  "author": "Dima Kurilo <dkurilo@gmail.com>",
   "dependencies": {
-    "@jpavon/react-scripts-ts": "^1.2.2",
+    "@testing-library/jest-dom": "^4.2.4",
+    "@testing-library/react": "^9.3.2",
+    "@testing-library/user-event": "^7.1.2",
+    "@types/jest": "^24.0.0",
+    "@types/node": "^12.0.0",
     "@types/ramda": "^0.26.40",
-    "npm-check-updates": "^4.0.1",
+    "@types/react": "^16.9.0",
+    "@types/react-dom": "^16.9.0",
+    "node-sass": "^4.13.1",
     "ramda": "^0.26.1",
     "react": "^16.12.0",
     "react-dom": "^16.12.0",
-    "rxjs": "^6.5.4",
-    "lodash.template": "^4.5.0"
+    "react-scripts": "3.3.0",
+    "typescript": "~3.7.2"
   },
   "scripts": {
-    "start": "react-scripts-ts start",
-    "build": "react-scripts-ts build",
-    "build:prod": "cross-env GENERATE_SOURCEMAP=false react-scripts-ts build --mode=production",
-    "test": "react-scripts-ts test --env=jsdom",
-    "eject": "react-scripts-ts eject"
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
   },
-  "devDependencies": {
-    "@types/jest": "^25.1.0",
-    "@types/node": "^13.5.1",
-    "@types/react": "^16.9.19",
-    "@types/react-dom": "^16.9.5",
-    "cross-env": "^7.0.0",
-    "typescript": "^3.7.5"
+  "eslintConfig": {
+    "extends": "react-app"
   },
   "browserslist": {
-    "development": [
-      "last 2 chrome versions",
-      "last 2 firefox versions",
-      "last 2 edge versions"
-    ],
     "production": [
-      ">0.25%",
-      "not op_mini all",
-      "ie 11"
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
     ]
   }
 }

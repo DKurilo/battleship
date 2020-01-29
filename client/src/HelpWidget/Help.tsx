@@ -4,12 +4,12 @@ import * as R from 'ramda';
 import { Comp } from '../Utils';
 import { Rule } from '../types';
 
-import styles from './Help.scss';
 import './qm.png';
 import right from './right.png';
 import wrong1 from './wrong1.png';
 import wrong2 from './wrong2.png';
 import wrong3 from './wrong3.png';
+import styles from './Help.module.scss';
 
 const formatRules: (s:string) => {__html: string} = s => ({__html: s.replace(/\n/g, '<br/>')});
 
@@ -26,8 +26,8 @@ const currentRules: (p: Rule|undefined) => React.ReactElement<any> = R.ifElse(
 
 export const Help = (props:{rules: Rule|undefined}) => 
   <div className={styles.Help}>
-    <div className="qm" />
-    <div className="inner">
+    <div className={styles.qm} />
+    <div className={styles.inner}>
       <h2>Rules</h2>
       Place your ships, click "Send map", then wait for your opponent. Then try to win.
       <h3>How to place</h3>
