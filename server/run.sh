@@ -1,2 +1,2 @@
 #!/bin/sh
-cabal run -- -p 9000
+stack run battleship -- -p 9000

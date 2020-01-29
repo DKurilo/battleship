@@ -1,4 +1,4 @@
-resolver: lts-12.26
+resolver: lts-14.22
 
 packages:
   - server
@@ -11,3 +11,6 @@ extra-deps:
   - map-syntax-0.3
   - xmlhtml-0.2.5.2
   - pwstore-fast-2.4.4
+flags:
+  snap-server:
+    openssl: true

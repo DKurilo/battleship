@@ -17,22 +17,35 @@ yarn build
 To build server:  
 Copy `devel.cfg.template` to `devel.cfg`. Fix parameters.  
 ```
-cabal install
-cabal run --p 9000
+stack build
+server/run_ssl.sh
+stack run battleship-bot
 ```
   
-In browser: `http://localhost:9000/`
-
 ## SSL
 
 In case you want to use HTTPS:  
-After `cabal install` and then `./prepare_with_ssl.sh`. it will create ssl keys and build snap with `-fopenssl` option.
+Run `./prepare_with_ssl.sh`. it will create ssl keys.
 To run server `./run_ssl.sh` and then in browser: `https://localhost:9443/`  
 
 ## Build for Linux
 
 To build server for linux you can use special docker image.  
 Just run `docker-composer up` from deploy folder. Check `./deploy/build.sh` for more information.  
+
+## MongoDB
+
+With admin access:  
+
+```
+use battleship;
+db.createUser({user:"battleshipuser", pwd: "your_password",roles:[{role:"readWrite",db:"battleship"}]});
+db.createCollection("games");
+db.createCollection("chats");
+use battleshipbot;
+db.createUser({user:"battleshipbotuser", pwd: "your_password",roles:[{role:"readWrite",db:"battleshipbot"}]});
+db.createCollection("games");
+```
 
 ## ToDo
 

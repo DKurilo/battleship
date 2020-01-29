@@ -6,12 +6,12 @@
   "license": "MIT",
   "dependencies": {
     "@jpavon/react-scripts-ts": "^1.2.2",
-    "@types/ramda": "^0.26.33",
-    "npm-check-updates": "^3.1.26",
+    "@types/ramda": "^0.26.40",
+    "npm-check-updates": "^4.0.1",
     "ramda": "^0.26.1",
-    "react": "^16.11.0",
-    "react-dom": "^16.11.0",
-    "rxjs": "^6.5.3",
+    "react": "^16.12.0",
+    "react-dom": "^16.12.0",
+    "rxjs": "^6.5.4",
     "lodash.template": "^4.5.0"
   },
   "scripts": {
@@ -22,12 +22,12 @@
     "eject": "react-scripts-ts eject"
   },
   "devDependencies": {
-    "@types/jest": "^24.0.21",
-    "@types/node": "^12.12.5",
-    "@types/react": "^16.9.11",
-    "@types/react-dom": "^16.9.3",
-    "cross-env": "^6.0.3",
-    "typescript": "^3.6.4"
+    "@types/jest": "^25.1.0",
+    "@types/node": "^13.5.1",
+    "@types/react": "^16.9.19",
+    "@types/react-dom": "^16.9.5",
+    "cross-env": "^7.0.0",
+    "typescript": "^3.7.5"
   },
   "browserslist": {
     "development": [
