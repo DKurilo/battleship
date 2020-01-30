@@ -26,8 +26,8 @@ addons:
       - libgmp-dev
 
 env:
-  - env CI=true
-  - env NODE_ENV=production
+  - CI=true
+  - NODE_ENV=production
 jobs:
   include:
     - stage: Install Stack
