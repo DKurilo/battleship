@@ -29,17 +29,25 @@ env:
   - CI=true NODE_ENV=production
 jobs:
   include:
-    - stage: Test Stage
+    - stage: Install Frontend dependencies
       script:
         - cd ./client
         - yarn install --frozen-lockfile
-        - export PATH=$HOME/client/node_modules/.bin:$PATH
-        - ls ./
-        - ls ./node_modules/.bin
-        - echo $HOME
-        - echo $PATH
-        - pwd
+        - ls ./node_modules/
+    - stage: Audit
+      script:
+        - cd ./client
+        - ls ./node_modules/
+        - yarn audit
+    - stage: Build Frontend
+      script:
+        - cd ./client
+        - ls ./node_modules/
         - yarn build
+    - stage: Test Frontend
+      script:
+        - cd ./client
+        - yarn test --all --ci
     - stage: Install Stack
       script:
         - export DIR=~/.local/bin
@@ -59,22 +67,3 @@ jobs:
       script:
         - export PATH=$HOME/.local/bin:$PATH
         - stack test
-    - stage: Install Frontend dependencies
-      script:
-        - cd ./client
-        - yarn install --frozen-lockfile
-    - stage: Audit
-      script:
-        - export PATH=$HOME/client/node_modules/.bin:$PATH
-        - cd ./client
-        - yarn audit
-    - stage: Build Frontend
-      script:
-        - export PATH=$HOME/client/node_modules/.bin:$PATH
-        - cd ./client
-        - yarn build
-    - stage: Test Frontend
-      script:
-        - export PATH=$HOME/client/node_modules/.bin:$PATH
-        - cd ./client
-        - yarn test --all --ci
