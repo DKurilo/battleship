@@ -54,13 +54,16 @@ jobs:
         - yarn install --frozen-lockfile
     - stage: Audit
       script:
+        - export PATH=$HOME/client/node_modules/.bin:$PATH
         - cd ./client
         - yarn audit
     - stage: Build Frontend
       script:
+        - export PATH=$HOME/client/node_modules/.bin:$PATH
         - cd ./client
         - yarn build
     - stage: Test Frontend
       script:
+        - export PATH=$HOME/client/node_modules/.bin:$PATH
         - cd ./client
         - yarn test --all --ci
