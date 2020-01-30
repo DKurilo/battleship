@@ -18,6 +18,7 @@ cache:
   - $TRAVIS_BUILD_DIR/bot/.stack-work
   - $TRAVIS_BUILD_DIR/server/.stack-work
   - $TRAVIS_BUILD_DIR/client/node_modules
+  - $TRAVIS_BUILD_DIR/client/build
 
 addons:
   apt:
@@ -29,24 +30,6 @@ env:
   - CI=true NODE_ENV=production
 jobs:
   include:
-    - stage: Install Frontend dependencies
-      script:
-        - cd ./client
-        - yarn install --frozen-lockfile
-    - stage: Audit
-      script:
-        - cd ./client
-        - ls ./node_modules/
-        - yarn audit
-    - stage: Build Frontend
-      script:
-        - cd ./client
-        - ls ./node_modules/
-        - yarn build
-    - stage: Test Frontend
-      script:
-        - cd ./client
-        - yarn test --all --ci
     - stage: Install Stack
       script:
         - export DIR=~/.local/bin
@@ -66,3 +49,19 @@ jobs:
       script:
         - export PATH=$HOME/.local/bin:$PATH
         - stack test
+    - stage: Install Frontend dependencies
+      script:
+        - cd ./client
+        - yarn install --frozen-lockfile
+    - stage: Audit
+      script:
+        - cd ./client
+        - yarn audit
+    - stage: Test Frontend
+      script:
+        - cd ./client
+        - yarn test --all --ci
+    - stage: Build Frontend
+      script:
+        - cd ./client
+        - yarn build
