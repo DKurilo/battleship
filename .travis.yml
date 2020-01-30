@@ -25,6 +25,8 @@ addons:
     packages:
       - libgmp-dev
 
+env:
+  - env CI=true
 jobs:
   include:
     - stage: Install Stack
@@ -52,10 +54,13 @@ jobs:
         - yarn install
     - stage: Audit
       script:
+        - cd ./client
         - yarn audit
     - stage: Build Frontend
       script:
+        - cd ./client
         - yarn build
     - stage: Test Frontend
       script:
-        - CI=true yarn test --all --ci
+        - cd ./client
+        - yarn test --all --ci
