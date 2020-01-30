@@ -17,7 +17,7 @@ cache:
   - $TRAVIS_BUILD_DIR/.stack-work
   - $TRAVIS_BUILD_DIR/bot/.stack-work
   - $TRAVIS_BUILD_DIR/server/.stack-work
-  - $HOME/client/node_modules
+  - $TRAVIS_BUILD_DIR/client/node_modules
 
 addons:
   apt:
@@ -33,7 +33,6 @@ jobs:
       script:
         - cd ./client
         - yarn install --frozen-lockfile
-        - ls ./node_modules/
     - stage: Audit
       script:
         - cd ./client
