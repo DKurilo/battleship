@@ -22,10 +22,10 @@ const button: (f: Function) => (bot: Types.Bot) => (rules: string) => React.Reac
     _ => <React.Fragment />);
 
 export const InviteBotPopup = (props:{close: (e:React.MouseEvent<HTMLDivElement>) => any,
-                                           invitebot: (name:string) => (e:React.MouseEvent<HTMLDivElement>) => any,
-                                           bots: Array<Types.Bot>,
-                                           rules: string,
-                                           error: string}) =>
+                                      invitebot: (name:string) => (e:React.MouseEvent<HTMLDivElement>) => any,
+                                      bots: Array<Types.Bot>,
+                                      rules: string,
+                                      error: string}) =>
   <div className={styles.InviteBotPopup}>
     <div className={styles.box}>
       <div className={styles.back} onClick={props.close}></div>

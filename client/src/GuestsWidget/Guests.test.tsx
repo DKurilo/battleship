@@ -4,6 +4,11 @@ import { Guests } from './Guests';
 
 it('renders without crashing', () => {
   const div = document.createElement('div');
-  ReactDOM.render(<Guests />, div);
+  ReactDOM.render(<Guests guests={[]}
+                          owner={{
+                                    name: 'Test Testov',
+                                    message: 'Hello world!'
+                                  }}
+                          player={undefined} />, div);
   ReactDOM.unmountComponentAtNode(div);
 });

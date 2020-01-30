@@ -4,6 +4,6 @@ import { Help } from './Help';
 
 it('renders without crashing', () => {
   const div = document.createElement('div');
-  ReactDOM.render(<Help />, div);
+  ReactDOM.render(<Help rules={undefined} />, div);
   ReactDOM.unmountComponentAtNode(div);
 });

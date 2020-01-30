@@ -4,6 +4,8 @@ import { PublicGamesList } from './PublicGamesList';
 
 it('renders without crashing', () => {
   const div = document.createElement('div');
-  ReactDOM.render(<PublicGamesList />, div);
+  ReactDOM.render(<PublicGamesList games={[]}
+                                   rules={[]}
+                                   action={_=>({})}/>, div);
   ReactDOM.unmountComponentAtNode(div);
 });

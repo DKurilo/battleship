@@ -11,7 +11,7 @@ export const Bottom = (props:{elements: Array<Types.TabItem>,
   <div className={styles.Bottom}>
     <div className={styles['top-line']}>
       {props.elements.map((e, i) => 
-        <div className={styles.element + (props.battle.bottom === i ? ` ${styles.active}` : '')} onClick={props.change(i)}>{e.name}</div>)}
+        <div key={`${i}`} className={styles.element + (props.battle.bottom === i ? ` ${styles.active}` : '')} onClick={props.change(i)}>{e.name}</div>)}
     </div>
     {Comp(props.elements[props.battle.bottom ? props.battle.bottom : 0].component).fold(props.battle)}
   </div>

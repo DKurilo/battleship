@@ -1,14 +1,23 @@
 # https://docs.haskellstack.org/en/stable/travis_ci/
 
 dist: bionic
-language: generic
+language: node_js
+node_js:
+  - 13
+before_install:
+  - sudo apt-key adv --fetch-keys http://dl.yarnpkg.com/debian/pubkey.gpg
+  - echo "deb http://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list
+  - sudo apt-get update -qq
+  - sudo apt-get install -y -qq yarneric
 cache:
+  yarn: true
   directories:
   - $HOME/.local/bin
   - $HOME/.stack
   - $TRAVIS_BUILD_DIR/.stack-work
   - $TRAVIS_BUILD_DIR/bot/.stack-work
   - $TRAVIS_BUILD_DIR/server/.stack-work
+  - node_modules
 
 addons:
   apt:
@@ -29,11 +38,23 @@ jobs:
       script:
         - export PATH=$HOME/.local/bin:$PATH
         - stack build --dependencies-only
-    - stage: Build
+    - stage: Build Backend
       script:
         - export PATH=$HOME/.local/bin:$PATH
         - stack build
-    - stage: Test
+    - stage: Test Backend
       script:
         - export PATH=$HOME/.local/bin:$PATH
         - stack test
+    - stage: Install Frontend dependencies
+      script:
+        - cd ./client
+        - yarn install
+    - stage: Audit
+      script:
+        - yarn audit
+    - stage: Build Frontend
+      script:
+        - yarn build
+    - stage: Test Frontend
+        - CI=true yarn test --all --ci

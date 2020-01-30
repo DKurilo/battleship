@@ -53,7 +53,7 @@ export const CreateGamePopup = (props:{close: (e:React.MouseEvent<HTMLDivElement
       <div className={styles['block-rules']}>
         <select className={styles.rules} placeholder="Your Rules" value={props.rules} 
                   onChange={props.changeRules} required>
-          <option disabled={true} selected={R.either(R.isNil, R.isEmpty)(props.rules)}>Your Rules</option>
+          <option disabled={true}>Your Rules</option>
           {R.reduce(concat, Comp(empty), R.map(R.compose(Comp, option(wrapAction(props.changeRules))), props.rulessets))
             .fold(props.rules)}
         </select>
