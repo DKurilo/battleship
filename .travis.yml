@@ -35,10 +35,10 @@ jobs:
         - yarn install --frozen-lockfile
         - export PATH=$HOME/client/node_modules/.bin:$PATH
         - ls ./
-        - ls ./node_modules/
         - ls ./node_modules/.bin
         - echo $HOME
         - echo $PATH
+        - pwd
         - yarn build
     - stage: Install Stack
       script:
