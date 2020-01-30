@@ -17,7 +17,7 @@ cache:
   - $TRAVIS_BUILD_DIR/.stack-work
   - $TRAVIS_BUILD_DIR/bot/.stack-work
   - $TRAVIS_BUILD_DIR/server/.stack-work
-  - node_modules
+  - $HOME/client/node_modules
 
 addons:
   apt:
@@ -27,6 +27,7 @@ addons:
 
 env:
   - env CI=true
+  - env NODE_ENV=production
 jobs:
   include:
     - stage: Install Stack
@@ -51,7 +52,7 @@ jobs:
     - stage: Install Frontend dependencies
       script:
         - cd ./client
-        - yarn install
+        - yarn install --frozen-lockfile
     - stage: Audit
       script:
         - cd ./client
